@@ -20,8 +20,15 @@ const BROWSER_DATA_DIR = path.join(__dirname, '../../browser-data');
 
 // Rate limiting
 const SCROLL_DELAY_MS = 2000;
+const SCROLL_DELAY_VARIANCE_MS = 1000; // Random variance to avoid detection
 const LOGIN_CHECK_INTERVAL_MS = 2000;
 const LOGIN_TIMEOUT_SEC = 120;
+const MAX_SCROLL_ATTEMPTS_NO_NEW = 5; // Stop after 5 scrolls with no new tweets
+
+// Error recovery
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 5000;
+const PAGE_LOAD_TIMEOUT_MS = 60000;
 
 // URLs
 const TWITTER_BASE_URL = 'https://twitter.com';
@@ -206,13 +213,13 @@ async function navigateToBookmarks(context) {
  */
 function _extractTweetData(tweetElement, index) {
   try {
-    // Extract text content
+    // Extract text content (may be empty for media-only tweets)
     const textElement = tweetElement.querySelector('[data-testid="tweetText"]');
-    const text = textElement ? textElement.innerText : '';
+    const text = textElement ? textElement.innerText.trim() : '';
     
     // Extract author
     const authorElement = tweetElement.querySelector('[data-testid="User-Name"]');
-    const author = authorElement ? authorElement.innerText.split('\n')[0] : 'Unknown';
+    const author = authorElement ? authorElement.innerText.split('\n')[0].trim() : 'Unknown';
     
     // Extract tweet URL
     const timeElement = tweetElement.querySelector('time');
@@ -221,31 +228,52 @@ function _extractTweetData(tweetElement, index) {
       url = timeElement.parentElement.href || '';
     }
     
+    // If no URL found, this might be a deleted/unavailable tweet - skip it
+    if (!url || url.length === 0) {
+      console.log('⚠️  Skipping tweet with no URL (possibly deleted)');
+      return null;
+    }
+    
     // Extract timestamp
     const timestamp = timeElement ? timeElement.getAttribute('datetime') : new Date().toISOString();
     
-    // Generate tweet ID from URL or fallback to index
-    const tweetId = url ? url.split('/').pop() : `bookmark_${index}`;
+    // Generate tweet ID from URL
+    const tweetId = url.split('/').pop();
+    
+    // Validate tweet ID
+    if (!tweetId || tweetId === 'status' || tweetId.length < 5) {
+      console.log('⚠️  Skipping tweet with invalid ID');
+      return null;
+    }
+    
+    // Check for "unavailable" or "deleted" indicators
+    const unavailableText = tweetElement.textContent.toLowerCase();
+    if (unavailableText.includes('this post is unavailable') || 
+        unavailableText.includes('this tweet was deleted')) {
+      console.log('⚠️  Skipping deleted/unavailable tweet');
+      return null;
+    }
     
     return {
       id: tweetId,
       author: author,
-      text: text,
+      text: text, // May be empty for media-only tweets (that's OK)
       url: url,
       timestamp: timestamp,
       scraped_at: new Date().toISOString()
     };
   } catch (error) {
+    console.error('Error extracting tweet:', error);
     return null;
   }
 }
 
 /**
- * Scrape bookmarks from current page
+ * Scrape bookmarks from current page (improved with edge case handling)
  * 
  * @param {Page} page - Playwright page object
  * @param {number} limit - Maximum number of bookmarks to extract
- * @returns {Object} { success, data: bookmarks[], error }
+ * @returns {Object} { success, data: bookmarks[], error, skipped }
  */
 async function scrapeBookmarks(page, limit = 10) {
   try {
@@ -254,47 +282,64 @@ async function scrapeBookmarks(page, limit = 10) {
     const bookmarks = [];
     let previousCount = 0;
     let noNewTweetsCount = 0;
-    const maxNoNewAttempts = 3;
+    let scrollAttempts = 0;
+    let skippedCount = 0;
     
-    while (bookmarks.length < limit && noNewTweetsCount < maxNoNewAttempts) {
+    while (bookmarks.length < limit && noNewTweetsCount < MAX_SCROLL_ATTEMPTS_NO_NEW) {
       // Extract all currently visible tweets
-      const tweets = await page.evaluate((extractFn) => {
+      const extractionResult = await page.evaluate((extractFn) => {
         const tweetElements = document.querySelectorAll('article[data-testid="tweet"]');
         const results = [];
+        let skipped = 0;
         
         tweetElements.forEach((tweet, index) => {
-          const data = eval(`(${extractFn})`)(tweet, index);
-          if (data) {
-            results.push(data);
+          try {
+            const data = eval(`(${extractFn})`)(tweet, index);
+            if (data) {
+              results.push(data);
+            } else {
+              skipped++;
+            }
+          } catch (error) {
+            console.error('Failed to extract tweet:', error);
+            skipped++;
           }
         });
         
-        return results;
+        return { tweets: results, skipped };
       }, _extractTweetData.toString());
+      
+      const tweets = extractionResult.tweets;
+      skippedCount += extractionResult.skipped;
       
       // Add new tweets (avoid duplicates)
       const existingIds = new Set(bookmarks.map(b => b.id));
       const newTweets = tweets.filter(t => !existingIds.has(t.id));
       bookmarks.push(...newTweets);
       
-      logger.debug(`Extracted ${bookmarks.length} bookmarks so far`, null, 'twitter');
+      const progress = Math.min((bookmarks.length / limit * 100), 100).toFixed(0);
+      logger.debug(`Progress: ${progress}% (${bookmarks.length}/${limit})`, null, 'twitter');
       
       // Check if we got new tweets
       if (bookmarks.length === previousCount) {
         noNewTweetsCount++;
+        logger.debug(`No new tweets (attempt ${noNewTweetsCount}/${MAX_SCROLL_ATTEMPTS_NO_NEW})`, null, 'twitter');
       } else {
         noNewTweetsCount = 0;
       }
       previousCount = bookmarks.length;
       
       // Scroll down to load more
-      if (bookmarks.length < limit) {
+      if (bookmarks.length < limit && noNewTweetsCount < MAX_SCROLL_ATTEMPTS_NO_NEW) {
+        scrollAttempts++;
+        
         await page.evaluate(() => {
           window.scrollBy(0, window.innerHeight);
         });
         
-        // Rate limiting delay
-        await page.waitForTimeout(SCROLL_DELAY_MS);
+        // Rate limiting with random variance (avoid detection)
+        const delay = SCROLL_DELAY_MS + Math.random() * SCROLL_DELAY_VARIANCE_MS;
+        await page.waitForTimeout(delay);
       }
     }
     
@@ -302,11 +347,21 @@ async function scrapeBookmarks(page, limit = 10) {
     const finalBookmarks = bookmarks.slice(0, limit);
     
     logger.success(`Extracted ${finalBookmarks.length} bookmarks`, 'twitter');
+    if (skippedCount > 0) {
+      logger.warn(`Skipped ${skippedCount} tweets (deleted/unavailable)`, 'twitter');
+    }
+    logger.info(`Scroll attempts: ${scrollAttempts}`, 'twitter');
     
     return {
       success: true,
       data: finalBookmarks,
-      error: null
+      error: null,
+      metadata: {
+        skipped: skippedCount,
+        scrolls: scrollAttempts,
+        extracted: finalBookmarks.length,
+        target: limit
+      }
     };
     
   } catch (error) {
@@ -314,7 +369,13 @@ async function scrapeBookmarks(page, limit = 10) {
     return {
       success: false,
       data: [],
-      error: error.message
+      error: error.message,
+      metadata: {
+        skipped: 0,
+        scrolls: 0,
+        extracted: 0,
+        target: limit
+      }
     };
   }
 }

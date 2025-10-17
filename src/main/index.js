@@ -3,12 +3,13 @@
  * Handles Electron app lifecycle, system tray, and window management
  */
 
-const { app, BrowserWindow, Tray, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, Notification } = require('electron');
 const path = require('path');
 const logger = require('../utils/logger');
 const twitter = require('../automation/twitter');
 const db = require('../db/database');
 const notebooklm = require('../automation/notebooklm');
+const scheduler = require('./scheduler');
 
 let mainWindow = null;
 let tray = null;
@@ -75,9 +76,53 @@ function createTray() {
     },
     {
       label: 'Sync Now',
+      click: async () => {
+        logger.info('Manual sync from tray menu', 'main');
+        const result = await scheduler.runSync({ limit: 50 });
+        
+        if (result.success) {
+          showSystemNotification('Sync Complete', `Synced ${result.data.count} bookmarks`);
+        } else {
+          showSystemNotification('Sync Failed', result.error);
+        }
+        
+        // Refresh tray menu to update schedule status
+        updateTrayMenu();
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Schedule: Not Active',
+      id: 'schedule-status',
+      enabled: false
+    },
+    {
+      label: 'Enable Daily Sync (8 AM)',
+      id: 'enable-schedule',
       click: () => {
-        console.log('Manual sync triggered');
-        // TODO: Call sync function
+        const result = scheduler.startSchedule({ 
+          cronExpression: '0 8 * * *',
+          limit: 50 
+        });
+        
+        if (result.success) {
+          logger.success('Schedule enabled', 'main');
+          showSystemNotification('Schedule Enabled', 'Daily sync at 8 AM');
+        } else {
+          logger.error('Failed to enable schedule', result.error, 'main');
+        }
+        
+        updateTrayMenu();
+      }
+    },
+    {
+      label: 'Disable Schedule',
+      id: 'disable-schedule',
+      click: () => {
+        scheduler.stopSchedule();
+        logger.info('Schedule disabled', 'main');
+        showSystemNotification('Schedule Disabled', 'Automatic sync stopped');
+        updateTrayMenu();
       }
     },
     { type: 'separator' },
@@ -107,12 +152,62 @@ function createTray() {
 }
 
 /**
+ * Update tray menu based on schedule status
+ */
+function updateTrayMenu() {
+  if (!tray) return;
+  
+  const status = scheduler.getScheduleStatus();
+  const contextMenu = tray.getContextMenu();
+  
+  if (status.success && status.data.enabled) {
+    // Schedule is active
+    const scheduleStatusItem = contextMenu.getMenuItemById('schedule-status');
+    const nextRun = status.data.nextRun ? new Date(status.data.nextRun).toLocaleString() : 'Unknown';
+    scheduleStatusItem.label = `Next Sync: ${nextRun}`;
+    
+    const enableItem = contextMenu.getMenuItemById('enable-schedule');
+    const disableItem = contextMenu.getMenuItemById('disable-schedule');
+    enableItem.visible = false;
+    disableItem.visible = true;
+  } else {
+    // Schedule is inactive
+    const scheduleStatusItem = contextMenu.getMenuItemById('schedule-status');
+    scheduleStatusItem.label = 'Schedule: Not Active';
+    
+    const enableItem = contextMenu.getMenuItemById('enable-schedule');
+    const disableItem = contextMenu.getMenuItemById('disable-schedule');
+    enableItem.visible = true;
+    disableItem.visible = false;
+  }
+}
+
+/**
+ * Show system notification (macOS notification center / Windows toast)
+ */
+function showSystemNotification(title, message) {
+  if (Notification.isSupported()) {
+    const notification = new Notification({
+      title: `BrainBrief - ${title}`,
+      body: message,
+      icon: path.join(__dirname, '../../assets/tray-icon.png') // Will use default if missing
+    });
+    
+    notification.show();
+    logger.debug(`Notification: ${title} - ${message}`, null, 'main');
+  }
+}
+
+/**
  * App lifecycle: Ready
  */
 app.whenReady().then(() => {
   console.log('🚀 BrainBrief starting...');
   createWindow();
   createTray();
+  
+  // Initialize tray menu with current schedule status
+  updateTrayMenu();
   
   console.log('✅ App ready. Check system tray for icon.');
   console.log('📁 User data directory:', app.getPath('userData'));
@@ -249,6 +344,55 @@ ipcMain.handle('export-bookmarks', async (event, options = {}) => {
     
   } catch (error) {
     logger.error('Export failed', error, 'main');
+    return { success: false, error: error.message };
+  }
+});
+
+// Get schedule status
+ipcMain.handle('get-schedule-status', async () => {
+  try {
+    return scheduler.getScheduleStatus();
+  } catch (error) {
+    logger.error('Failed to get schedule status', error, 'main');
+    return { success: false, error: error.message };
+  }
+});
+
+// Enable schedule
+ipcMain.handle('enable-schedule', async (event, options = {}) => {
+  try {
+    const { cronExpression = '0 8 * * *', limit = 50 } = options;
+    logger.info(`UI requested schedule enable: ${cronExpression}`, 'main');
+    
+    const result = scheduler.startSchedule({ cronExpression, limit });
+    
+    if (result.success) {
+      updateTrayMenu();
+      showSystemNotification('Schedule Enabled', `Daily sync at 8 AM`);
+    }
+    
+    return result;
+  } catch (error) {
+    logger.error('Failed to enable schedule', error, 'main');
+    return { success: false, error: error.message };
+  }
+});
+
+// Disable schedule
+ipcMain.handle('disable-schedule', async () => {
+  try {
+    logger.info('UI requested schedule disable', 'main');
+    
+    const result = scheduler.stopSchedule();
+    
+    if (result.success) {
+      updateTrayMenu();
+      showSystemNotification('Schedule Disabled', 'Automatic sync stopped');
+    }
+    
+    return result;
+  } catch (error) {
+    logger.error('Failed to disable schedule', error, 'main');
     return { success: false, error: error.message };
   }
 });
