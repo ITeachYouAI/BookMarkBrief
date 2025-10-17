@@ -10,6 +10,7 @@
 1. **Consistency > Cleverness** - Same patterns everywhere
 2. **Reliability > Speed** - Every function handles errors
 3. **Clarity > Brevity** - Explicit is better than implicit
+4. **Async Everything** - All I/O operations (database, file, network) are async and must be awaited
 
 ---
 
@@ -167,6 +168,18 @@ Example:
 
 **Rule:** Always use async/await. No .then() chains.
 
+**Critical:** All database operations are asynchronous and MUST be awaited.
+
+```javascript
+// ❌ BAD - Missing await (will fail silently)
+const result = db.saveBookmark(bookmark);
+
+// ✅ GOOD - Awaited properly
+const result = await db.saveBookmark(bookmark);
+```
+
+**Why:** We use sql.js (pure JavaScript database) which is async. Forgetting `await` will cause silent failures.
+
 ```javascript
 // ❌ BAD
 function getData() {
@@ -235,6 +248,37 @@ const context = await chromium.launchPersistentContext(dataDir);
 
 ---
 
+## Database Module
+
+**Technology:** sql.js (pure JavaScript SQLite implementation)
+
+**Why sql.js (not better-sqlite3):**
+- ✅ No native compilation (works immediately in Electron)
+- ✅ No Python/node-gyp dependency
+- ✅ No NODE_MODULE_VERSION conflicts
+- ✅ Same SQL syntax as SQLite
+- ⚠️ Slightly slower (acceptable for <10,000 bookmarks)
+
+**Critical Rules:**
+
+1. **All database operations are async** - Must use `await`
+2. **All database functions return Promises** - Return `{ success, data, error }`
+3. **Database auto-saves to disk** - After every write operation
+
+**Pattern:**
+```javascript
+// ❌ BAD - Missing await
+const result = db.saveBookmark(bookmark);
+
+// ✅ GOOD - Awaited properly
+const result = await db.saveBookmark(bookmark);
+if (result.success) {
+  console.log('Saved:', result.data);
+}
+```
+
+---
+
 ## Database Queries
 
 **Rule:** Use parameterized queries. Never string concatenation.
@@ -244,7 +288,8 @@ const context = await chromium.launchPersistentContext(dataDir);
 db.query(`SELECT * FROM bookmarks WHERE id = ${userId}`);
 
 // ✅ GOOD
-db.query('SELECT * FROM bookmarks WHERE id = ?', [userId]);
+const stmt = db.prepare('SELECT * FROM bookmarks WHERE id = ?');
+stmt.bind([userId]);
 ```
 
 ---
@@ -357,17 +402,68 @@ const TWITTER_LISTS_URL = `${TWITTER_BASE_URL}/i/lists`;
 
 ---
 
+## Error Display (UI/UX)
+
+**Rule:** Always show detailed, actionable error messages to users.
+
+### Error Notification Requirements
+
+**Every error MUST include:**
+1. **What failed** (title)
+2. **Why it failed** (detailed message)
+3. **When it failed** (timestamp)
+4. **How to fix it** (action buttons: Copy Error, View Logs)
+
+**Pattern:**
+```javascript
+// ❌ BAD - Vague error
+showNotification('Error', 'Something went wrong', 'error');
+
+// ✅ GOOD - Detailed, actionable error
+showNotification(
+  'Database Error',
+  'Failed to save bookmark: UNIQUE constraint failed on tweet_id 12345',
+  'error',
+  { autoDismiss: false, showCopy: true }
+);
+```
+
+### Toast System Behavior
+
+**Error toasts:**
+- Stay visible until manually dismissed
+- Show "Copy Error" button (for reporting)
+- Show "View Logs" button (for debugging)
+- Red left border
+
+**Success toasts:**
+- Auto-dismiss after 10 seconds
+- Green left border
+- Update "Last Sync" timestamp
+
+**Warning toasts:**
+- Auto-dismiss after 10 seconds
+- Yellow left border
+
+**Info toasts:**
+- Auto-dismiss after 10 seconds
+- Blue left border
+
+---
+
 ## Code Review Checklist
 
 Before committing, verify:
 
 - [ ] Every async function has try-catch
 - [ ] All functions return standard `{ success, data, error }` format
-- [ ] Using logger (not console.log)
+- [ ] Using logger (not console.log) in backend
+- [ ] All database calls have `await`
 - [ ] All magic numbers in constants
 - [ ] File has header comment
 - [ ] Functions have JSDoc comments
 - [ ] No TODO without scope
+- [ ] Errors show detailed messages (not just "Error")
 - [ ] Git commit follows format
 
 ---

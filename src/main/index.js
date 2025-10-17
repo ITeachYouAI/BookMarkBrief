@@ -3,8 +3,12 @@
  * Handles Electron app lifecycle, system tray, and window management
  */
 
-const { app, BrowserWindow, Tray, Menu } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain } = require('electron');
 const path = require('path');
+const logger = require('../utils/logger');
+const twitter = require('../automation/twitter');
+const db = require('../db/database');
+const notebooklm = require('../automation/notebooklm');
 
 let mainWindow = null;
 let tray = null;
@@ -144,5 +148,108 @@ app.on('before-quit', () => {
 process.on('uncaughtException', (error) => {
   console.error('❌ Uncaught exception:', error);
   // TODO: Log to file
+});
+
+/**
+ * IPC Handlers - Communication between renderer and main process
+ */
+
+// Get database stats
+ipcMain.handle('get-stats', async () => {
+  try {
+    logger.info('UI requested stats', 'main');
+    const dbInit = await db.initDatabase();
+    if (!dbInit.success) {
+      return { success: false, error: dbInit.error };
+    }
+    
+    const statsResult = await db.getStats();
+    return statsResult;
+  } catch (error) {
+    logger.error('Failed to get stats', error, 'main');
+    return { success: false, error: error.message };
+  }
+});
+
+// Sync bookmarks from Twitter
+ipcMain.handle('sync-bookmarks', async (event, options = {}) => {
+  try {
+    const { limit = 10 } = options;
+    logger.info(`UI triggered sync (limit: ${limit})`, 'main');
+    
+    // Send status update to renderer
+    event.sender.send('sync-status', { status: 'extracting', message: 'Extracting bookmarks from Twitter...' });
+    
+    // Extract from Twitter
+    const twitterResult = await twitter.extractBookmarks({ limit });
+    if (!twitterResult.success) {
+      event.sender.send('sync-status', { status: 'error', message: `Twitter extraction failed: ${twitterResult.error}` });
+      return twitterResult;
+    }
+    
+    const bookmarks = twitterResult.data.bookmarks;
+    event.sender.send('sync-status', { status: 'saving', message: `Saving ${bookmarks.length} bookmarks to database...` });
+    
+    // Save to database
+    const saveResult = await db.saveBookmarks(bookmarks);
+    if (!saveResult.success) {
+      event.sender.send('sync-status', { status: 'error', message: `Database save failed: ${saveResult.error}` });
+      return saveResult;
+    }
+    
+    event.sender.send('sync-status', { status: 'complete', message: `Synced ${bookmarks.length} bookmarks!` });
+    
+    logger.success(`Sync complete: ${bookmarks.length} bookmarks`, 'main');
+    return {
+      success: true,
+      data: {
+        count: bookmarks.length,
+        saved: saveResult.data.saved,
+        failed: saveResult.data.failed
+      },
+      error: null
+    };
+    
+  } catch (error) {
+    logger.error('Sync failed', error, 'main');
+    event.sender.send('sync-status', { status: 'error', message: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+// Export bookmarks to NotebookLM format
+ipcMain.handle('export-bookmarks', async (event, options = {}) => {
+  try {
+    const { limit = 100 } = options;
+    logger.info('UI requested export', 'main');
+    
+    // Get bookmarks from database
+    const bookmarksResult = await db.getBookmarks({ limit });
+    if (!bookmarksResult.success) {
+      return bookmarksResult;
+    }
+    
+    const bookmarks = bookmarksResult.data.map(b => ({
+      id: b.tweet_id,
+      author: b.author,
+      text: b.text,
+      url: b.url,
+      timestamp: b.timestamp,
+      scraped_at: b.scraped_at
+    }));
+    
+    // Create export file
+    const fileResult = notebooklm.testFileCreation(bookmarks);
+    
+    if (fileResult.success) {
+      logger.success(`Exported ${bookmarks.length} bookmarks`, 'main');
+    }
+    
+    return fileResult;
+    
+  } catch (error) {
+    logger.error('Export failed', error, 'main');
+    return { success: false, error: error.message };
+  }
 });
 

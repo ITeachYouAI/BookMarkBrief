@@ -4,8 +4,8 @@
   "description": "Sync Twitter bookmarks and lists to NotebookLM",
   "main": "src/main/index.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --dev",
+    "start": "electron . --show",
+    "dev": "electron . --dev --show",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -18,10 +18,9 @@
   "author": "Timothy Joo <timothy@iteachyouai.com>",
   "license": "MIT",
   "dependencies": {
-    "better-sqlite3": "^9.6.0",
     "electron": "^27.3.11",
     "node-schedule": "^2.1.1",
-    "playwright": "^1.45.3"
-  },
-  "devDependencies": {}
+    "playwright": "^1.45.3",
+    "sql.js": "^1.13.0"
+  }
 }

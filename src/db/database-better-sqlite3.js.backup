@@ -1,13 +1,13 @@
 /**
- * BrainBrief - Database Module (sql.js version)
+ * BrainBrief - Database Module
  * 
- * Purpose: SQLite database operations using sql.js (pure JavaScript, no native compilation)
- * Dependencies: sql.js, fs, path
+ * Purpose: SQLite database operations for storing bookmarks and lists locally
+ * Dependencies: better-sqlite3, fs, path
  * 
  * @module database
  */
 
-const initSqlJs = require('sql.js');
+const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
@@ -18,89 +18,16 @@ const DB_FILE = path.join(DB_DIR, 'brainbrief.db');
 const SCHEMA_FILE = path.join(__dirname, 'schema.sql');
 
 // Singleton database instance
-let SQL = null;
 let db = null;
-
-/**
- * Initialize sql.js engine
- * 
- * @returns {Promise<Object>} { success, data: SQL, error }
- */
-async function initEngine() {
-  try {
-    if (!SQL) {
-      SQL = await initSqlJs();
-      logger.debug('sql.js engine initialized', null, 'db');
-    }
-    
-    return {
-      success: true,
-      data: SQL,
-      error: null
-    };
-    
-  } catch (error) {
-    logger.error('Failed to initialize sql.js engine', error, 'db');
-    return {
-      success: false,
-      data: null,
-      error: error.message
-    };
-  }
-}
-
-/**
- * Save database to disk
- * 
- * @returns {Object} { success, data: null, error }
- */
-function saveToFile() {
-  try {
-    if (!db) {
-      return { success: false, data: null, error: 'Database not initialized' };
-    }
-    
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(DB_DIR)) {
-      fs.mkdirSync(DB_DIR, { recursive: true });
-    }
-    
-    // Export database to file
-    const data = db.export();
-    const buffer = Buffer.from(data);
-    fs.writeFileSync(DB_FILE, buffer);
-    
-    return {
-      success: true,
-      data: null,
-      error: null
-    };
-    
-  } catch (error) {
-    logger.error('Failed to save database to file', error, 'db');
-    return {
-      success: false,
-      data: null,
-      error: error.message
-    };
-  }
-}
 
 /**
  * Initialize database and create tables
  * 
- * @returns {Promise<Object>} { success, data: db, error }
+ * @returns {Object} { success, data: db, error }
  */
-async function initDatabase() {
+function initDatabase() {
   try {
-    logger.info('Initializing database (sql.js)', 'db');
-    
-    // Initialize sql.js engine
-    const engineResult = await initEngine();
-    if (!engineResult.success) {
-      return engineResult;
-    }
-    SQL = engineResult.data;
+    logger.info('Initializing database', 'db');
     
     // Create data directory if it doesn't exist
     if (!fs.existsSync(DB_DIR)) {
@@ -108,22 +35,15 @@ async function initDatabase() {
       logger.debug('Created data directory', DB_DIR, 'db');
     }
     
-    // Load existing database or create new one
-    if (fs.existsSync(DB_FILE)) {
-      const buffer = fs.readFileSync(DB_FILE);
-      db = new SQL.Database(buffer);
-      logger.success(`Database loaded: ${DB_FILE}`, 'db');
-    } else {
-      db = new SQL.Database();
-      logger.success('New database created', 'db');
-    }
+    // Open database connection
+    db = new Database(DB_FILE);
+    db.pragma('journal_mode = WAL'); // Write-Ahead Logging for better performance
+    
+    logger.success(`Database opened: ${DB_FILE}`, 'db');
     
     // Read and execute schema
     const schema = fs.readFileSync(SCHEMA_FILE, 'utf-8');
     db.exec(schema);
-    
-    // Save to file
-    saveToFile();
     
     logger.success('Database schema initialized', 'db');
     
@@ -146,12 +66,12 @@ async function initDatabase() {
 /**
  * Get database instance (initialize if not exists)
  * 
- * @returns {Promise<Object>} { success, data: db, error }
+ * @returns {Object} { success, data: db, error }
  */
-async function getDatabase() {
+function getDatabase() {
   try {
     if (!db) {
-      const result = await initDatabase();
+      const result = initDatabase();
       if (!result.success) {
         return result;
       }
@@ -177,18 +97,24 @@ async function getDatabase() {
  * Save a bookmark to database
  * 
  * @param {Object} bookmark - Bookmark data
- * @returns {Promise<Object>} { success, data: insertedId, error }
+ * @param {string} bookmark.id - Tweet ID
+ * @param {string} bookmark.author - Author username
+ * @param {string} bookmark.text - Tweet text
+ * @param {string} bookmark.url - Tweet URL
+ * @param {string} bookmark.timestamp - Tweet timestamp
+ * @param {string} bookmark.scraped_at - Scrape timestamp
+ * @returns {Object} { success, data: insertedId, error }
  */
-async function saveBookmark(bookmark) {
+function saveBookmark(bookmark) {
   try {
-    const dbResult = await getDatabase();
+    const dbResult = getDatabase();
     if (!dbResult.success) {
       return dbResult;
     }
-    const database = dbResult.data;
+    const db = dbResult.data;
     
     // Insert or replace bookmark (upsert)
-    const stmt = database.prepare(`
+    const stmt = db.prepare(`
       INSERT INTO bookmarks (tweet_id, author, text, url, timestamp, scraped_at)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(tweet_id) DO UPDATE SET
@@ -199,25 +125,20 @@ async function saveBookmark(bookmark) {
         scraped_at = excluded.scraped_at
     `);
     
-    stmt.run([
+    const result = stmt.run(
       bookmark.id,
       bookmark.author,
       bookmark.text,
       bookmark.url,
       bookmark.timestamp,
       bookmark.scraped_at
-    ]);
-    
-    stmt.free();
-    
-    // Save to file after every insert
-    saveToFile();
+    );
     
     logger.debug(`Saved bookmark: ${bookmark.id}`, null, 'db');
     
     return {
       success: true,
-      data: 1, // sql.js doesn't return lastInsertRowid easily, just return 1
+      data: result.lastInsertRowid,
       error: null
     };
     
@@ -235,11 +156,11 @@ async function saveBookmark(bookmark) {
  * Save multiple bookmarks (batch insert)
  * 
  * @param {Array<Object>} bookmarks - Array of bookmark objects
- * @returns {Promise<Object>} { success, data: { saved, failed }, error }
+ * @returns {Object} { success, data: { saved, failed }, error }
  */
-async function saveBookmarks(bookmarks) {
+function saveBookmarks(bookmarks) {
   try {
-    const dbResult = await getDatabase();
+    const dbResult = getDatabase();
     if (!dbResult.success) {
       return dbResult;
     }
@@ -249,15 +170,20 @@ async function saveBookmarks(bookmarks) {
     let saved = 0;
     let failed = 0;
     
-    for (const bookmark of bookmarks) {
-      const result = await saveBookmark(bookmark);
-      if (result.success) {
-        saved++;
-      } else {
-        failed++;
-        logger.warn(`Failed to save bookmark ${bookmark.id}`, 'db');
+    // Use transaction for batch insert
+    const saveAll = db.transaction(() => {
+      for (const bookmark of bookmarks) {
+        const result = saveBookmark(bookmark);
+        if (result.success) {
+          saved++;
+        } else {
+          failed++;
+          logger.warn(`Failed to save bookmark ${bookmark.id}`, 'db');
+        }
       }
-    }
+    });
+    
+    saveAll();
     
     logger.success(`Saved ${saved} bookmarks (${failed} failed)`, 'db');
     
@@ -281,32 +207,27 @@ async function saveBookmarks(bookmarks) {
  * Get bookmarks from database
  * 
  * @param {Object} options - Query options
- * @returns {Promise<Object>} { success, data: bookmarks[], error }
+ * @param {number} options.limit - Maximum bookmarks to return
+ * @param {number} options.offset - Offset for pagination
+ * @returns {Object} { success, data: bookmarks[], error }
  */
-async function getBookmarks(options = {}) {
+function getBookmarks(options = {}) {
   try {
     const { limit = 100, offset = 0 } = options;
     
-    const dbResult = await getDatabase();
+    const dbResult = getDatabase();
     if (!dbResult.success) {
       return dbResult;
     }
-    const database = dbResult.data;
+    const db = dbResult.data;
     
-    const stmt = database.prepare(`
+    const stmt = db.prepare(`
       SELECT * FROM bookmarks
       ORDER BY scraped_at DESC
       LIMIT ? OFFSET ?
     `);
     
-    stmt.bind([limit, offset]);
-    
-    const bookmarks = [];
-    while (stmt.step()) {
-      const row = stmt.getAsObject();
-      bookmarks.push(row);
-    }
-    stmt.free();
+    const bookmarks = stmt.all(limit, offset);
     
     logger.debug(`Retrieved ${bookmarks.length} bookmarks`, null, 'db');
     
@@ -329,20 +250,18 @@ async function getBookmarks(options = {}) {
 /**
  * Get bookmark count
  * 
- * @returns {Promise<Object>} { success, data: count, error }
+ * @returns {Object} { success, data: count, error }
  */
-async function getBookmarkCount() {
+function getBookmarkCount() {
   try {
-    const dbResult = await getDatabase();
+    const dbResult = getDatabase();
     if (!dbResult.success) {
       return dbResult;
     }
-    const database = dbResult.data;
+    const db = dbResult.data;
     
-    const stmt = database.prepare('SELECT COUNT(*) as count FROM bookmarks');
-    stmt.step();
-    const result = stmt.getAsObject();
-    stmt.free();
+    const stmt = db.prepare('SELECT COUNT(*) as count FROM bookmarks');
+    const result = stmt.get();
     
     logger.debug(`Total bookmarks: ${result.count}`, null, 'db');
     
@@ -365,20 +284,18 @@ async function getBookmarkCount() {
 /**
  * Get database stats (for UI display)
  * 
- * @returns {Promise<Object>} { success, data: stats, error }
+ * @returns {Object} { success, data: { total_bookmarks, total_lists, last_sync }, error }
  */
-async function getStats() {
+function getStats() {
   try {
-    const dbResult = await getDatabase();
+    const dbResult = getDatabase();
     if (!dbResult.success) {
       return dbResult;
     }
-    const database = dbResult.data;
+    const db = dbResult.data;
     
-    const stmt = database.prepare('SELECT * FROM bookmark_stats');
-    stmt.step();
-    const stats = stmt.getAsObject();
-    stmt.free();
+    const stmt = db.prepare('SELECT * FROM bookmark_stats');
+    const stats = stmt.get();
     
     return {
       success: true,
@@ -400,21 +317,18 @@ async function getStats() {
  * Check if bookmark exists
  * 
  * @param {string} tweetId - Tweet ID to check
- * @returns {Promise<Object>} { success, data: exists (boolean), error }
+ * @returns {Object} { success, data: exists (boolean), error }
  */
-async function bookmarkExists(tweetId) {
+function bookmarkExists(tweetId) {
   try {
-    const dbResult = await getDatabase();
+    const dbResult = getDatabase();
     if (!dbResult.success) {
       return dbResult;
     }
-    const database = dbResult.data;
+    const db = dbResult.data;
     
-    const stmt = database.prepare('SELECT COUNT(*) as count FROM bookmarks WHERE tweet_id = ?');
-    stmt.bind([tweetId]);
-    stmt.step();
-    const result = stmt.getAsObject();
-    stmt.free();
+    const stmt = db.prepare('SELECT COUNT(*) as count FROM bookmarks WHERE tweet_id = ?');
+    const result = stmt.get(tweetId);
     
     return {
       success: true,
@@ -435,14 +349,11 @@ async function bookmarkExists(tweetId) {
 /**
  * Close database connection
  * 
- * @returns {Promise<Object>} { success, data: null, error }
+ * @returns {Object} { success, data: null, error }
  */
-async function closeDatabase() {
+function closeDatabase() {
   try {
     if (db) {
-      // Save to file before closing
-      saveToFile();
-      
       db.close();
       db = null;
       logger.info('Database connection closed', 'db');

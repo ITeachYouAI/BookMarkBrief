@@ -118,6 +118,17 @@ main {
   background: #d0d7dd;
 }
 
+.btn-export {
+  background: #10B981;
+  color: white;
+  width: 100%;
+}
+
+.btn-export:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
 /* Info Card */
 .info-card {
   background: white;
@@ -183,5 +194,141 @@ footer a {
 
 footer a:hover {
   text-decoration: underline;
+}
+
+/* Toast Notifications */
+#toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 400px;
+}
+
+.toast {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideIn 0.3s ease;
+  border-left: 4px solid #ccc;
+}
+
+.toast.error {
+  border-left-color: #EF4444;
+}
+
+.toast.success {
+  border-left-color: #10B981;
+}
+
+.toast.warning {
+  border-left-color: #F59E0B;
+}
+
+.toast.info {
+  border-left-color: #3B82F6;
+}
+
+.toast-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.toast-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  flex: 1;
+}
+
+.toast-icon {
+  font-size: 1.2rem;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 1.3rem;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.toast-close:hover {
+  color: #333;
+}
+
+.toast-message {
+  font-size: 0.9rem;
+  color: #666;
+  margin-left: 28px;
+  word-wrap: break-word;
+}
+
+.toast-timestamp {
+  font-size: 0.75rem;
+  color: #999;
+  margin-left: 28px;
+}
+
+.toast-actions {
+  margin-left: 28px;
+  margin-top: 8px;
+  display: flex;
+  gap: 10px;
+}
+
+.toast-action {
+  background: none;
+  border: 1px solid #ddd;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.toast-action:hover {
+  background: #f5f5f5;
+  border-color: #999;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(400px);
+    opacity: 0;
+  }
 }
 
