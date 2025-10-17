@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrainBrief - Twitter to NotebookLM</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🧠 BrainBrief</h1>
+      <p class="subtitle">Sync Twitter bookmarks & lists to NotebookLM</p>
+    </header>
+
+    <main>
+      <section class="status-card">
+        <h2>Status</h2>
+        <div class="status-item">
+          <span class="label">Twitter:</span>
+          <span class="value" id="twitter-status">Not connected</span>
+        </div>
+        <div class="status-item">
+          <span class="label">NotebookLM:</span>
+          <span class="value" id="notebooklm-status">Not connected</span>
+        </div>
+        <div class="status-item">
+          <span class="label">Last Sync:</span>
+          <span class="value" id="last-sync">Never</span>
+        </div>
+      </section>
+
+      <section class="actions">
+        <button class="btn btn-primary" id="sync-now">
+          Sync Now
+        </button>
+        <button class="btn btn-secondary" id="open-settings">
+          Settings
+        </button>
+      </section>
+
+      <section class="info-card">
+        <h3>Quick Start</h3>
+        <ol>
+          <li>Click "Settings" to configure Twitter and NotebookLM access</li>
+          <li>Choose which Twitter lists to sync (optional)</li>
+          <li>Set your sync schedule (daily, weekly, manual)</li>
+          <li>Click "Sync Now" to run your first sync</li>
+        </ol>
+      </section>
+
+      <section class="stats">
+        <div class="stat">
+          <div class="stat-number" id="bookmarks-count">0</div>
+          <div class="stat-label">Bookmarks</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number" id="lists-count">0</div>
+          <div class="stat-label">Lists Synced</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number" id="tweets-count">0</div>
+          <div class="stat-label">Total Tweets</div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Version 1.0.0 | 
+        <a href="#" id="view-logs">View Logs</a> | 
+        <a href="https://github.com/yourusername/brainbrief" target="_blank">GitHub</a>
+      </p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
