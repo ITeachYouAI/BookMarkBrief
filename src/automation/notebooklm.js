@@ -169,6 +169,7 @@ async function navigateToNotebookLM(context) {
 
 /**
  * Create bookmark text file for upload
+ * NOW INCLUDES: Embedded YouTube, images, quoted tweets
  * 
  * @param {Array<Object>} bookmarks - Array of bookmark objects
  * @param {string} outputPath - Output file path
@@ -193,6 +194,48 @@ function createBookmarkFile(bookmarks, outputPath) {
         content += `**Content:**\n${bookmark.text}\n\n`;
       }
       
+      // NEW: Include embedded content
+      if (bookmark.embedded) {
+        const emb = bookmark.embedded;
+        
+        // YouTube videos
+        if (emb.youtubeUrls && emb.youtubeUrls.length > 0) {
+          content += `**YouTube Videos:**\n`;
+          emb.youtubeUrls.forEach(url => {
+            content += `- ${url}\n`;
+          });
+          content += '\n';
+        }
+        
+        // Images
+        if (emb.imageUrls && emb.imageUrls.length > 0) {
+          content += `**Images:**\n`;
+          emb.imageUrls.forEach((url, i) => {
+            content += `- Image ${i + 1}: ${url}\n`;
+          });
+          content += '\n';
+        }
+        
+        // Videos
+        if (emb.videoUrls && emb.videoUrls.length > 0) {
+          content += `**Videos:**\n`;
+          emb.videoUrls.forEach((url, i) => {
+            content += `- Video ${i + 1}: ${url}\n`;
+          });
+          content += '\n';
+        }
+        
+        // Quoted tweet
+        if (emb.quotedTweet) {
+          content += `**Quoted Tweet:**\n`;
+          content += `> Author: ${emb.quotedTweet.author}\n`;
+          if (emb.quotedTweet.text) {
+            content += `> ${emb.quotedTweet.text}\n`;
+          }
+          content += '\n';
+        }
+      }
+      
       content += '---\n\n';
     });
     
@@ -206,6 +249,15 @@ function createBookmarkFile(bookmarks, outputPath) {
     fs.writeFileSync(outputPath, content, 'utf-8');
     
     logger.success(`Created bookmark file: ${outputPath}`, 'notebooklm');
+    
+    // Log embedded content summary
+    const totalYoutube = bookmarks.reduce((sum, b) => sum + (b.embedded?.youtubeUrls?.length || 0), 0);
+    const totalImages = bookmarks.reduce((sum, b) => sum + (b.embedded?.imageUrls?.length || 0), 0);
+    const totalQuoted = bookmarks.filter(b => b.embedded?.quotedTweet).length;
+    
+    if (totalYoutube > 0) logger.info(`  Included ${totalYoutube} YouTube URLs`, 'notebooklm');
+    if (totalImages > 0) logger.info(`  Included ${totalImages} image URLs`, 'notebooklm');
+    if (totalQuoted > 0) logger.info(`  Included ${totalQuoted} quoted tweets`, 'notebooklm');
     
     return {
       success: true,

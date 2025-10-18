@@ -2,7 +2,7 @@
 -- SQLite database for storing Twitter bookmarks and lists locally
 
 -- Bookmarks table
--- Stores extracted Twitter bookmarks with full metadata
+-- Stores extracted Twitter bookmarks with full metadata + embedded content
 CREATE TABLE IF NOT EXISTS bookmarks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tweet_id TEXT UNIQUE NOT NULL,      -- Twitter tweet ID (unique)
@@ -11,7 +11,12 @@ CREATE TABLE IF NOT EXISTS bookmarks (
   url TEXT NOT NULL,                   -- Full tweet URL
   timestamp TEXT NOT NULL,             -- Original tweet timestamp (ISO 8601)
   scraped_at TEXT NOT NULL,            -- When we scraped it (ISO 8601)
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP  -- When we saved to DB
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,  -- When we saved to DB
+  -- NEW: Embedded content (stored as JSON)
+  youtube_urls TEXT,                   -- JSON array of YouTube URLs
+  image_urls TEXT,                     -- JSON array of image URLs
+  video_urls TEXT,                     -- JSON array of video URLs
+  quoted_tweet TEXT                    -- JSON object of quoted tweet
 );
 
 -- Lists table

@@ -210,6 +210,7 @@ async function navigateToBookmarks(context) {
 
 /**
  * Extract tweet data from DOM element (runs in browser context)
+ * NOW EXTRACTS: Text + YouTube URLs + Images + Quote tweets
  * 
  * @param {Element} tweetElement - Tweet DOM element
  * @param {number} index - Tweet index
@@ -258,13 +259,95 @@ function _extractTweetData(tweetElement, index) {
       return null;
     }
     
+    // ============================================
+    // NEW: EXTRACT EMBEDDED CONTENT
+    // ============================================
+    
+    const embeddedContent = {
+      youtubeUrls: [],
+      imageUrls: [],
+      videoUrls: [],
+      quotedTweet: null
+    };
+    
+    // Extract YouTube URLs (from links AND text)
+    const links = tweetElement.querySelectorAll('a[href*="youtube.com"], a[href*="youtu.be"]');
+    links.forEach(link => {
+      const href = link.href;
+      if (href && !embeddedContent.youtubeUrls.includes(href)) {
+        embeddedContent.youtubeUrls.push(href);
+      }
+    });
+    
+    // Also check text for YouTube URLs (in case not linked)
+    if (text) {
+      const youtubeRegex = /(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtu\.be\/)[\w-]+/gi;
+      const matches = text.match(youtubeRegex);
+      if (matches) {
+        matches.forEach(match => {
+          // Ensure it's a full URL
+          let url = match;
+          if (!url.startsWith('http')) {
+            url = 'https://' + url;
+          }
+          if (!embeddedContent.youtubeUrls.includes(url)) {
+            embeddedContent.youtubeUrls.push(url);
+          }
+        });
+      }
+    }
+    
+    // Extract image URLs (EXCLUDE profile images, only tweet media)
+    const images = tweetElement.querySelectorAll(
+      'img[src*="pbs.twimg.com/media"], ' +
+      'img[src*="pbs.twimg.com/card_img"], ' +
+      'img[src*="pbs.twimg.com/amplify_video_thumb"]'
+    );
+    images.forEach(img => {
+      let src = img.src;
+      // Get original quality image (remove size params)
+      if (src) {
+        src = src.split('&name=')[0] + '&name=orig'; // Original quality
+        if (!embeddedContent.imageUrls.includes(src)) {
+          embeddedContent.imageUrls.push(src);
+        }
+      }
+    });
+    
+    // Extract video URLs (from video tags or media containers)
+    const videos = tweetElement.querySelectorAll('video[src], div[data-testid="videoPlayer"]');
+    videos.forEach(video => {
+      const src = video.src || video.getAttribute('poster');
+      if (src && !embeddedContent.videoUrls.includes(src)) {
+        embeddedContent.videoUrls.push(src);
+      }
+    });
+    
+    // Extract quoted tweet (if exists)
+    const quotedTweetElement = tweetElement.querySelector('div[role="link"][data-testid="quoteTweet"]');
+    if (quotedTweetElement) {
+      const quotedText = quotedTweetElement.querySelector('[data-testid="tweetText"]');
+      const quotedAuthor = quotedTweetElement.querySelector('[data-testid="User-Name"]');
+      
+      if (quotedText || quotedAuthor) {
+        embeddedContent.quotedTweet = {
+          author: quotedAuthor ? quotedAuthor.innerText.split('\n')[0].trim() : 'Unknown',
+          text: quotedText ? quotedText.innerText.trim() : ''
+        };
+      }
+    }
+    
+    // ============================================
+    
     return {
       id: tweetId,
       author: author,
-      text: text, // May be empty for media-only tweets (that's OK)
+      text: text,
       url: url,
       timestamp: timestamp,
-      scraped_at: new Date().toISOString()
+      scraped_at: new Date().toISOString(),
+      // NEW: Include embedded content
+      embedded: embeddedContent
     };
   } catch (error) {
     console.error('Error extracting tweet:', error);
@@ -529,7 +612,7 @@ async function extractNewBookmarks(options = {}) {
     
     while (!foundExisting && newBookmarks.length < maxNew) {
       // Extract current batch
-      const batchResult = await page.evaluate((extractFn, batchSize) => {
+      const batchResult = await page.evaluate(({ extractFn, batchSize }) => {
         const tweetElements = Array.from(document.querySelectorAll('article[data-testid="tweet"]'));
         const results = [];
         let skipped = 0;
@@ -548,7 +631,7 @@ async function extractNewBookmarks(options = {}) {
         });
         
         return { tweets: results, skipped };
-      }, _extractTweetData.toString(), BATCH_SIZE);
+      }, { extractFn: _extractTweetData.toString(), batchSize: BATCH_SIZE });
       
       const batch = batchResult.tweets;
       totalExtracted += batch.length;

@@ -187,16 +187,29 @@ async function saveBookmark(bookmark) {
     }
     const database = dbResult.data;
     
-    // Insert or replace bookmark (upsert)
+    // Serialize embedded content to JSON
+    const youtubeUrls = bookmark.embedded?.youtubeUrls ? JSON.stringify(bookmark.embedded.youtubeUrls) : null;
+    const imageUrls = bookmark.embedded?.imageUrls ? JSON.stringify(bookmark.embedded.imageUrls) : null;
+    const videoUrls = bookmark.embedded?.videoUrls ? JSON.stringify(bookmark.embedded.videoUrls) : null;
+    const quotedTweet = bookmark.embedded?.quotedTweet ? JSON.stringify(bookmark.embedded.quotedTweet) : null;
+    
+    // Insert or replace bookmark (upsert) with embedded content
     const stmt = database.prepare(`
-      INSERT INTO bookmarks (tweet_id, author, text, url, timestamp, scraped_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO bookmarks (
+        tweet_id, author, text, url, timestamp, scraped_at,
+        youtube_urls, image_urls, video_urls, quoted_tweet
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(tweet_id) DO UPDATE SET
         author = excluded.author,
         text = excluded.text,
         url = excluded.url,
         timestamp = excluded.timestamp,
-        scraped_at = excluded.scraped_at
+        scraped_at = excluded.scraped_at,
+        youtube_urls = excluded.youtube_urls,
+        image_urls = excluded.image_urls,
+        video_urls = excluded.video_urls,
+        quoted_tweet = excluded.quoted_tweet
     `);
     
     stmt.run([
@@ -205,7 +218,11 @@ async function saveBookmark(bookmark) {
       bookmark.text,
       bookmark.url,
       bookmark.timestamp,
-      bookmark.scraped_at
+      bookmark.scraped_at,
+      youtubeUrls,
+      imageUrls,
+      videoUrls,
+      quotedTweet
     ]);
     
     stmt.free();
@@ -304,6 +321,33 @@ async function getBookmarks(options = {}) {
     const bookmarks = [];
     while (stmt.step()) {
       const row = stmt.getAsObject();
+      
+      // Deserialize embedded content from JSON
+      if (row.youtube_urls) {
+        try {
+          row.embedded = row.embedded || {};
+          row.embedded.youtubeUrls = JSON.parse(row.youtube_urls);
+        } catch (e) { /* ignore parse errors */ }
+      }
+      if (row.image_urls) {
+        try {
+          row.embedded = row.embedded || {};
+          row.embedded.imageUrls = JSON.parse(row.image_urls);
+        } catch (e) { /* ignore parse errors */ }
+      }
+      if (row.video_urls) {
+        try {
+          row.embedded = row.embedded || {};
+          row.embedded.videoUrls = JSON.parse(row.video_urls);
+        } catch (e) { /* ignore parse errors */ }
+      }
+      if (row.quoted_tweet) {
+        try {
+          row.embedded = row.embedded || {};
+          row.embedded.quotedTweet = JSON.parse(row.quoted_tweet);
+        } catch (e) { /* ignore parse errors */ }
+      }
+      
       bookmarks.push(row);
     }
     stmt.free();
