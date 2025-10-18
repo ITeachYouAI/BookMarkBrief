@@ -565,7 +565,7 @@ async function uploadFile(page, filePath, isNewNotebook = false) {
  * @returns {Object} { success, data: { uploaded, filePath, notebookName, existed }, error }
  */
 async function uploadBookmarks(bookmarks, options = {}) {
-  const { notebookName = 'BrainBrief - Twitter Bookmarks' } = options;
+  const { notebookName = null } = options;
   
   let context = null;
   
@@ -573,17 +573,31 @@ async function uploadBookmarks(bookmarks, options = {}) {
     logger.info('Starting AUTOMATED NotebookLM upload', 'notebooklm');
     logger.info(`Bookmarks to upload: ${bookmarks.length}`, 'notebooklm');
     
-    // Step 1: Get active notebook from database (handles rotation)
-    // Pass bookmarks so it can use their dates for notebook naming
-    const activeNotebookResult = await notebookTracker.getActiveNotebook(bookmarks);
-    if (!activeNotebookResult.success) {
-      logger.error('Failed to get active notebook', activeNotebookResult.error, 'notebooklm');
-      // Fallback to default name
-    }
+    let targetNotebook;
     
-    const targetNotebook = activeNotebookResult.success 
-      ? activeNotebookResult.data 
-      : { id: null, name: notebookName, sourceCount: 0 };
+    // Step 1: Get notebook name
+    if (notebookName) {
+      // Custom notebook name provided (for Lists)
+      logger.info(`Using custom notebook name: "${notebookName}"`, 'notebooklm');
+      targetNotebook = { 
+        id: null, 
+        name: notebookName, 
+        sourceCount: 0 
+      };
+    } else {
+      // Use tracker for bookmarks (handles rotation)
+      const activeNotebookResult = await notebookTracker.getActiveNotebook(bookmarks);
+      if (!activeNotebookResult.success) {
+        logger.error('Failed to get active notebook', activeNotebookResult.error, 'notebooklm');
+        targetNotebook = { 
+          id: null, 
+          name: 'BrainBrief - Twitter Bookmarks', 
+          sourceCount: 0 
+        };
+      } else {
+        targetNotebook = activeNotebookResult.data;
+      }
+    }
     
     logger.info(`Target notebook: "${targetNotebook.name}"`, 'notebooklm');
     logger.info(`Current sources: ${targetNotebook.sourceCount}/${notebookTracker.MAX_SOURCES_PER_NOTEBOOK}`, 'notebooklm');

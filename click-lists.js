@@ -27,6 +27,13 @@ async function clickLists() {
     await page.goto('https://x.com/home', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(3000);
     
+    // Set up console listener FIRST
+    page.on('console', msg => {
+      if (msg.type() === 'log') {
+        console.log(`   [Browser]: ${msg.text()}`);
+      }
+    });
+    
     // Click Lists in sidebar
     console.log('🖱️  Clicking "Lists" in sidebar...');
     try {
@@ -35,6 +42,7 @@ async function clickLists() {
       await page.waitForTimeout(5000); // Wait for Lists page to load
       
       console.log(`✅ Navigated to: ${page.url()}\n`);
+      console.log('🔎 Extracting list data...\n');
       
       // Now extract lists with full details
       const lists = await page.evaluate(() => {
@@ -53,14 +61,26 @@ async function clickLists() {
             // Find member count
             let memberCount = '';
             allText.forEach(text => {
-              if (text.match(/^\d+\s*members?$/i)) {
+              if (text.match(/\d+\s*members?/i)) {
                 memberCount = text;
               }
             });
             
-            // Extract list ID from onclick or cell HTML
-            const cellHTML = cell.innerHTML;
-            const match = cellHTML.match(/\/i\/lists\/(\d+)/);
+            // Extract list ID from cell HTML (search entire HTML)
+            const cellHTML = cell.outerHTML;
+            
+            // Try multiple patterns
+            let match = cellHTML.match(/\/i\/lists\/(\d+)/);
+            
+            if (!match) {
+              // Try looking for list ID in data attributes
+              match = cellHTML.match(/list[_-]?id["\s:]+(\d+)/i);
+            }
+            
+            if (!match) {
+              // Log first 500 chars of HTML for debugging
+              console.log(`Cell ${i} (${name}): No ID found. HTML preview: ${cellHTML.substring(0, 200)}...`);
+            }
             
             if (match) {
               const listId = match[1];
@@ -72,10 +92,8 @@ async function clickLists() {
                   url: `https://x.com/i/lists/${listId}`,
                   memberCount
                 });
-                console.log(`Cell ${i}: ${name} -> ${listId}`);
+                console.log(`Cell ${i}: ${name} -> ${listId} ✓`);
               }
-            } else {
-              console.log(`Cell ${i}: No ID found for "${name}"`);
             }
           } catch (error) {
             console.error(`Error processing cell ${i}:`, error);
