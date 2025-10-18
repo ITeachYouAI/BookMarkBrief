@@ -8,7 +8,8 @@ const { ipcRenderer } = require('electron');
 console.log('🎨 Renderer process loaded');
 
 // DOM elements
-const syncNowBtn = document.getElementById('sync-now');
+const syncBookmarksBtn = document.getElementById('sync-bookmarks');
+const syncListsBtn = document.getElementById('sync-lists');
 const settingsBtn = document.getElementById('open-settings');
 const viewLogsBtn = document.getElementById('view-logs');
 const exportBtn = document.getElementById('export-bookmarks');
@@ -341,15 +342,38 @@ ipcRenderer.on('sync-status', (event, data) => {
 /**
  * Event Listeners
  */
-syncNowBtn.addEventListener('click', () => {
-  console.log('🔄 Sync Now clicked');
+syncBookmarksBtn.addEventListener('click', () => {
+  console.log('🔖 Sync Bookmarks clicked');
   syncBookmarks();
+});
+
+syncListsBtn.addEventListener('click', async () => {
+  console.log('📋 Sync Lists clicked');
+  
+  try {
+    syncListsBtn.disabled = true;
+    syncListsBtn.textContent = 'Syncing Lists...';
+    
+    const result = await ipcRenderer.invoke('sync-lists');
+    
+    if (result.success) {
+      showNotification('Lists Synced!', `${result.data.synced}/${result.data.total} lists uploaded`, 'success');
+      loadStats();
+    } else {
+      showNotification('Sync Failed', result.error, 'error');
+    }
+  } catch (error) {
+    console.error('❌ Sync Lists error:', error);
+    showNotification('Error', error.message, 'error');
+  } finally {
+    syncListsBtn.disabled = false;
+    syncListsBtn.textContent = '📋 Sync Lists';
+  }
 });
 
 settingsBtn.addEventListener('click', () => {
   console.log('⚙️  Settings clicked');
-  // TODO(v1.1): Open settings page
-  alert('Settings page coming soon!\n\nYou will be able to:\n- Configure sync limit\n- Set sync schedule\n- Select which lists to sync\n- View sync history');
+  window.location.href = 'settings.html';
 });
 
 viewLogsBtn.addEventListener('click', (e) => {

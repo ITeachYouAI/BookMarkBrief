@@ -738,16 +738,25 @@ async function testExtraction() {
  * @param {string} listConfig.url - List URL
  * @param {string} listConfig.listId - List ID
  * @param {number} listConfig.maxTweets - Max tweets to extract
+ * @param {number} listConfig.daysBack - Only extract tweets from last N days (default: 3)
  * @returns {Object} { success, data: { tweets, listInfo }, error }
  */
 async function extractListTweets(listConfig) {
-  const { name, url, listId, maxTweets = 50 } = listConfig;
+  const { name, url, listId, maxTweets = 50, daysBack = 3 } = listConfig;
   
   let context = null;
   
   try {
     logger.info(`Extracting tweets from list: "${name}"`, 'twitter');
     logger.info(`Max tweets: ${maxTweets}`, 'twitter');
+    logger.info(`Time filter: Last ${daysBack} days`, 'twitter');
+    
+    // Calculate cutoff date (tweets older than this will be skipped)
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+    const cutoffTimestamp = cutoffDate.toISOString();
+    
+    logger.debug(`Cutoff date: ${cutoffTimestamp}`, null, 'twitter');
     
     // Initialize browser
     const browserResult = await initBrowser();
@@ -809,9 +818,22 @@ async function extractListTweets(listConfig) {
       
       const extractedTweets = extractionResult.tweets;
       
+      // Filter tweets by date (only last N days)
+      const recentTweets = extractedTweets.filter(t => {
+        if (!t.timestamp) return true; // Include if no timestamp
+        return t.timestamp >= cutoffTimestamp;
+      });
+      
+      // Check if we've hit old tweets (stop extraction)
+      const oldTweets = extractedTweets.length - recentTweets.length;
+      if (oldTweets > 0) {
+        logger.info(`Found ${oldTweets} tweets older than ${daysBack} days, stopping`, 'twitter');
+        break; // Stop scrolling - we've gone back far enough
+      }
+      
       // Add new tweets (avoid duplicates)
       const existingIds = new Set(tweets.map(t => t.id));
-      const newTweets = extractedTweets.filter(t => !existingIds.has(t.id));
+      const newTweets = recentTweets.filter(t => !existingIds.has(t.id));
       
       if (newTweets.length === 0) {
         noNewTweetsCount++;

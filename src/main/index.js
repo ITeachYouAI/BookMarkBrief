@@ -456,3 +456,136 @@ ipcMain.handle('disable-schedule', async () => {
   }
 });
 
+// Get lists config
+ipcMain.handle('get-lists-config', async () => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const configPath = path.join(__dirname, '../../lists-config.json');
+    
+    if (!fs.existsSync(configPath)) {
+      return { success: false, data: null, error: 'No lists config found' };
+    }
+    
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    return { success: true, data: config, error: null };
+    
+  } catch (error) {
+    logger.error('Failed to get lists config', error, 'main');
+    return { success: false, data: null, error: error.message };
+  }
+});
+
+// Save lists config
+ipcMain.handle('save-lists-config', async (event, { lists }) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const configPath = path.join(__dirname, '../../lists-config.json');
+    
+    // Load existing config or create new
+    let config = { lists: [], settings: {} };
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    }
+    
+    config.lists = lists;
+    
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    logger.success(`Saved ${lists.length} lists to config`, 'main');
+    
+    return { success: true, data: null, error: null };
+    
+  } catch (error) {
+    logger.error('Failed to save lists config', error, 'main');
+    return { success: false, data: null, error: error.message };
+  }
+});
+
+// Discover lists
+ipcMain.handle('discover-lists', async () => {
+  try {
+    logger.info('UI requested list discovery', 'main');
+    
+    // Run the discovery script
+    const { exec } = require('child_process');
+    const path = require('path');
+    const scriptPath = path.join(__dirname, '../../click-and-extract-lists.js');
+    
+    return new Promise((resolve) => {
+      exec(`node "${scriptPath}"`, (error, stdout, stderr) => {
+        if (error) {
+          logger.error('Discovery failed', error, 'main');
+          resolve({ success: false, data: null, error: error.message });
+          return;
+        }
+        
+        // Parse output to count lists
+        const match = stdout.match(/Extracted (\d+) lists/);
+        const count = match ? parseInt(match[1]) : 0;
+        
+        logger.success(`Discovered ${count} lists`, 'main');
+        resolve({ success: true, data: { count }, error: null });
+      });
+    });
+    
+  } catch (error) {
+    logger.error('Failed to discover lists', error, 'main');
+    return { success: false, data: null, error: error.message };
+  }
+});
+
+// Sync lists
+ipcMain.handle('sync-lists', async () => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const { extractListTweets } = require('../automation/twitter');
+    const { uploadListTweets } = require('../automation/notebooklm');
+    
+    logger.info('UI requested list sync', 'main');
+    
+    // Load config
+    const configPath = path.join(__dirname, '../../lists-config.json');
+    if (!fs.existsSync(configPath)) {
+      return { success: false, data: null, error: 'No lists config found. Run discovery first.' };
+    }
+    
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    const enabledLists = config.lists.filter(l => l.enabled);
+    
+    if (enabledLists.length === 0) {
+      return { success: false, data: null, error: 'No lists enabled. Go to Settings to enable lists.' };
+    }
+    
+    logger.info(`Syncing ${enabledLists.length} enabled lists`, 'main');
+    
+    let synced = 0;
+    for (const list of enabledLists) {
+      try {
+        const extractResult = await extractListTweets(list);
+        if (extractResult.success && extractResult.data.tweets.length > 0) {
+          const uploadResult = await uploadListTweets(extractResult.data.tweets, {
+            name: list.name,
+            listId: list.listId,
+            url: list.url
+          });
+          if (uploadResult.success) synced++;
+        }
+      } catch (error) {
+        logger.error(`Failed to sync list "${list.name}"`, error, 'main');
+      }
+    }
+    
+    return { 
+      success: true, 
+      data: { synced, total: enabledLists.length }, 
+      error: null 
+    };
+    
+  } catch (error) {
+    logger.error('List sync failed', error, 'main');
+    return { success: false, data: null, error: error.message };
+  }
+});
+

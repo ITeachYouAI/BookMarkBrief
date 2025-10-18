@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - BrainBrief</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .list-item {
+      padding: 15px;
+      margin: 10px 0;
+      background: #f5f5f5;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .list-item:hover {
+      background: #e8e8e8;
+    }
+    
+    .list-info {
+      flex: 1;
+    }
+    
+    .list-name {
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+    
+    .list-meta {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .list-checkbox {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    
+    .section {
+      margin-bottom: 30px;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <div class="container">
+    <header>
+      <h1>⚙️ Settings</h1>
+      <p class="subtitle">Configure Lists to Sync</p>
+    </header>
+
+    <main>
+      <section class="section">
+        <h2>Select Lists to Sync</h2>
+        <p style="color: #666; margin-bottom: 15px;">
+          Check the lists you want to sync. Each list creates a separate NotebookLM notebook.
+        </p>
+        
+        <div id="lists-container">
+          <p style="text-align: center; padding: 40px; color: #999;">
+            No lists found. Run discovery first.
+          </p>
+        </div>
+        
+        <div class="btn-group">
+          <button class="btn btn-primary" id="save-settings">
+            💾 Save Settings
+          </button>
+          <button class="btn btn-secondary" id="discover-lists">
+            🔍 Discover Lists
+          </button>
+          <button class="btn btn-secondary" id="back-home">
+            ← Back
+          </button>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Sync Options</h2>
+        <div class="list-item">
+          <div class="list-info">
+            <div class="list-name">Max Tweets per List</div>
+            <div class="list-meta">How many tweets to extract from each list</div>
+          </div>
+          <input type="number" id="max-tweets" value="50" min="10" max="500" style="width: 80px; padding: 8px;">
+        </div>
+        <div class="list-item">
+          <div class="list-info">
+            <div class="list-name">Days Back</div>
+            <div class="list-meta">Only extract tweets from last N days (faster!)</div>
+          </div>
+          <input type="number" id="days-back" value="3" min="1" max="30" style="width: 80px; padding: 8px;">
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>
+
