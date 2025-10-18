@@ -1,5 +1,22 @@
 # BrainBrief Changelog
 
+## [1.0.1] - 2025-10-18
+
+### 🐛 Bug Fixes
+
+**Browser Lock Issue:**
+- Added `fix-lock.sh` script to handle ProcessSingleton lock errors
+- Added `npm run fix` command to auto-clean and sync
+- Updated troubleshooting docs with quick fix instructions
+- Prevents conflicts when Electron app and CLI run simultaneously
+
+**Usage:**
+```bash
+npm run fix    # Auto-fix lock and sync
+```
+
+---
+
 ## [1.0.0] - 2025-10-18
 
 ### ✅ PRODUCTION READY - Full Twitter to NotebookLM Pipeline

@@ -7,6 +7,7 @@
     "start": "electron . --show",
     "dev": "electron . --dev --show",
     "sync": "node run-sync.js",
+    "fix": "./fix-lock.sh && npm run sync",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

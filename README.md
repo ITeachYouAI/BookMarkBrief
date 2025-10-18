@@ -105,7 +105,19 @@ brainbrief/
 ## 🐛 Troubleshooting
 
 ### "Failed to create ProcessSingleton"
-**Solution:** Close the Electron app before running `npm run sync`
+**Problem:** Browser lock file preventing sync
+
+**Quick Fix:**
+```bash
+npm run fix
+```
+
+**Manual Fix:**
+1. Close the Electron app: `pkill -f "electron.*brainbrief"`
+2. Remove lock file: `rm -f browser-data/SingletonLock`
+3. Run sync: `npm run sync`
+
+**Prevention:** Don't run Electron app and CLI sync at the same time
 
 ### "Not logged in to Twitter"
 **Solution:** Run sync once, log in manually in the browser window
