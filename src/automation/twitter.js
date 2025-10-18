@@ -749,11 +749,11 @@ async function testExtraction() {
  * @param {string} listConfig.url - List URL
  * @param {string} listConfig.listId - List ID
  * @param {number} listConfig.maxTweets - Max tweets to extract
- * @param {number} listConfig.daysBack - Only extract tweets from last N days (default: 3)
+ * @param {number} listConfig.daysBack - Only extract tweets from last N days (default: 1)
  * @returns {Object} { success, data: { tweets, listInfo }, error }
  */
 async function extractListTweets(listConfig) {
-  const { name, url, listId, maxTweets = 50, daysBack = 3 } = listConfig;
+  const { name, url, listId, maxTweets = 50, daysBack = 1 } = listConfig;
   
   let context = null;
   

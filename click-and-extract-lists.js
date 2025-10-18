@@ -73,7 +73,7 @@ async function clickAndExtract() {
             listId,
             enabled: true,
             maxTweets: 50,
-            daysBack: 3  // Only last 3 days
+            daysBack: 1  // Only last 24 hours
           });
         } else {
           console.log(`   ⚠️  No ID in URL\n`);
@@ -102,7 +102,7 @@ async function clickAndExtract() {
         syncEnabled: true,
         createSeparateNotebooks: true,
         notebookNameFormat: "BrainBrief - {listName} - {date}",
-        defaultDaysBack: 3,
+        defaultDaysBack: 1,
         defaultMaxTweets: 50
       }
     };

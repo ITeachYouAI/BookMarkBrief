@@ -84,7 +84,7 @@ In Settings page:
 **Step 3: Select Lists to Sync**
 - ✅ Check the lists you want to sync
 - ❌ Uncheck lists you want to skip
-- Set **"Days Back"** (default: 3 days for speed)
+- Set **"Days Back"** (default: 1 day = last 24 hours)
 - Set **"Max Tweets"** (default: 50)
 - Click **"Save Settings"**
 
@@ -100,8 +100,9 @@ BrainBrief - Solana Influencers - 2025-10-18
 ```
 
 **Performance:**
-- 3-day filter: ~30 seconds per list ⚡
-- 7-day filter: ~60 seconds per list
+- 1-day filter (24 hours): ~15-30 seconds per list ⚡ (default)
+- 3-day filter: ~45 seconds per list
+- 7-day filter: ~90 seconds per list
 - All time: 2-5 minutes per list (not recommended)
 
 ## 📊 What Gets Extracted

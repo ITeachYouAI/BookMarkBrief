@@ -6,7 +6,7 @@
       "listId": "YOUR_LIST_ID_HERE",
       "enabled": true,
       "maxTweets": 50,
-      "daysBack": 3,
+      "daysBack": 1,
       "memberCount": "3.4K members"
     }
   ],
@@ -14,7 +14,7 @@
     "syncEnabled": true,
     "createSeparateNotebooks": true,
     "notebookNameFormat": "BrainBrief - {listName} - {date}",
-    "defaultDaysBack": 3
+    "defaultDaysBack": 1
   }
 }
 
