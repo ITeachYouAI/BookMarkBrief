@@ -192,6 +192,17 @@ async function navigateToBookmarks(context) {
     await page.goto(TWITTER_BOOKMARKS_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(2000); // Let page settle
     
+    // Check for rate limiting
+    const pageText = await page.textContent('body').catch(() => '');
+    if (pageText.toLowerCase().includes('rate limit') || pageText.toLowerCase().includes('too many requests')) {
+      logger.error('Twitter rate limit detected', null, 'twitter');
+      return {
+        success: false,
+        data: null,
+        error: 'Twitter rate limit reached. Please wait 15 minutes and try again.'
+      };
+    }
+    
     return {
       success: true,
       data: page,

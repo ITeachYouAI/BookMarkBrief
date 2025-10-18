@@ -55,3 +55,9 @@ coverage/
 tmp/
 temp/
 
+# Debug files
+debug-*.html
+debug-*.png
+debug-*.js
+auth.json
+
