@@ -1,5 +1,28 @@
 # BrainBrief Changelog
 
+## [1.2.0] - 2025-10-18
+
+### ✨ Settings Page + Multi-Select Lists
+
+**Added:**
+- Settings page with visual list management
+- Multi-select checkboxes for all discovered lists
+- 3-day filter for fast list extraction (configurable 1-30 days)
+- Separate "Sync Bookmarks" and "Sync Lists" buttons in main UI
+- IPC handlers: get-lists-config, save-lists-config, discover-lists, sync-lists
+
+**Performance:**
+- 3-day extraction: ~30 seconds per list (vs. 5 minutes all-time)
+- Date filter stops scrolling when old tweets detected
+- Default: Last 3 days, max 50 tweets
+
+**Files:**
+- src/renderer/settings.html (Settings UI)
+- src/renderer/settings.js (List management)
+- Updated main UI to split Sync button
+
+---
+
 ## [1.1.0] - 2025-10-18
 
 ### ✨ NEW FEATURE: Twitter Lists Support

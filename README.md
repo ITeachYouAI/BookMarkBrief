@@ -69,39 +69,40 @@ npm start
 
 ### Twitter Lists
 
-**Step 1: Discover Your Lists**
+**Step 1: Open Settings**
 ```bash
-npm run discover:lists
+npm start
 ```
-This will:
-- Navigate to your Lists page
-- Extract all list names and URLs
-- Save to `lists-config.json`
+Click **"Settings"** button in the app
 
-**Step 2: Edit Config**
-Edit `lists-config.json` to enable/disable lists:
-```json
-{
-  "lists": [
-    {
-      "name": "AI Leaders",
-      "url": "https://x.com/i/lists/123456",
-      "enabled": true,  // Set to false to skip
-      "maxTweets": 50
-    }
-  ]
-}
+**Step 2: Discover Lists (One-time)**
+In Settings page:
+- Click **"Discover Lists"**
+- Browser opens and finds all your Twitter Lists
+- Returns to Settings showing all lists with checkboxes
+
+**Step 3: Select Lists to Sync**
+- ✅ Check the lists you want to sync
+- ❌ Uncheck lists you want to skip
+- Set **"Days Back"** (default: 3 days for speed)
+- Set **"Max Tweets"** (default: 50)
+- Click **"Save Settings"**
+
+**Step 4: Sync**
+Go back to main page and click **"Sync Lists"**
+
+**Result:**
+Each enabled list creates a separate NotebookLM notebook:
+```
+BrainBrief - AI Leaders #2 of 2 - 2025-10-18
+BrainBrief - Gauntlet AI Cohort 1 - 2025-10-18
+BrainBrief - Solana Influencers - 2025-10-18
 ```
 
-**Step 3: Sync Lists**
-- **Electron App:** Click tray icon → "Sync Lists"
-- **CLI:** `npm run sync:lists`
-
-Each list creates a separate NotebookLM notebook:
-```
-BrainBrief - AI Leaders - 2025-10-18
-BrainBrief - Tech News - 2025-10-18
-```
+**Performance:**
+- 3-day filter: ~30 seconds per list ⚡
+- 7-day filter: ~60 seconds per list
+- All time: 2-5 minutes per list (not recommended)
 
 ## 📊 What Gets Extracted
 
