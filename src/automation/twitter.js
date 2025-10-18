@@ -729,8 +729,154 @@ async function testExtraction() {
   return await extractBookmarks({ limit: 1 });
 }
 
+/**
+ * Extract tweets from a specific Twitter List
+ * Reuses the same extraction logic as bookmarks
+ * 
+ * @param {Object} listConfig - List configuration
+ * @param {string} listConfig.name - List name
+ * @param {string} listConfig.url - List URL
+ * @param {string} listConfig.listId - List ID
+ * @param {number} listConfig.maxTweets - Max tweets to extract
+ * @returns {Object} { success, data: { tweets, listInfo }, error }
+ */
+async function extractListTweets(listConfig) {
+  const { name, url, listId, maxTweets = 50 } = listConfig;
+  
+  let context = null;
+  
+  try {
+    logger.info(`Extracting tweets from list: "${name}"`, 'twitter');
+    logger.info(`Max tweets: ${maxTweets}`, 'twitter');
+    
+    // Initialize browser
+    const browserResult = await initBrowser();
+    if (!browserResult.success) {
+      return browserResult;
+    }
+    context = browserResult.data;
+    
+    const page = await context.newPage();
+    
+    // Navigate to list
+    logger.info(`Navigating to list URL: ${url}`, 'twitter');
+    await page.goto(url, { 
+      waitUntil: 'domcontentloaded',
+      timeout: 30000 
+    });
+    
+    // Wait for tweets to load
+    await page.waitForTimeout(3000);
+    
+    // Wait for tweets
+    try {
+      await page.waitForSelector('article[data-testid="tweet"]', { timeout: 10000 });
+      logger.success('List tweets loaded', 'twitter');
+    } catch (error) {
+      logger.warn('No tweets found or timeout', 'twitter');
+    }
+    
+    // Extract tweets using the SAME logic as bookmarks
+    logger.info(`Extracting up to ${maxTweets} tweets from list`, 'twitter');
+    
+    const tweets = [];
+    let scrollAttempts = 0;
+    let noNewTweetsCount = 0;
+    
+    while (tweets.length < maxTweets && noNewTweetsCount < MAX_SCROLL_ATTEMPTS_NO_NEW) {
+      // Extract all currently visible tweets (REUSING _extractTweetData)
+      const extractionResult = await page.evaluate((extractFn) => {
+        const tweetElements = document.querySelectorAll('article[data-testid="tweet"]');
+        const results = [];
+        let skipped = 0;
+        
+        tweetElements.forEach((tweet, index) => {
+          try {
+            const data = eval(`(${extractFn})`)(tweet, index);
+            if (data) {
+              results.push(data);
+            } else {
+              skipped++;
+            }
+          } catch (error) {
+            console.error('Failed to extract tweet:', error);
+            skipped++;
+          }
+        });
+        
+        return { tweets: results, skipped };
+      }, _extractTweetData.toString());
+      
+      const extractedTweets = extractionResult.tweets;
+      
+      // Add new tweets (avoid duplicates)
+      const existingIds = new Set(tweets.map(t => t.id));
+      const newTweets = extractedTweets.filter(t => !existingIds.has(t.id));
+      
+      if (newTweets.length === 0) {
+        noNewTweetsCount++;
+        logger.debug(`No new tweets (attempt ${noNewTweetsCount}/${MAX_SCROLL_ATTEMPTS_NO_NEW})`, null, 'twitter');
+      } else {
+        tweets.push(...newTweets.slice(0, maxTweets - tweets.length));
+        noNewTweetsCount = 0;
+        
+        const progress = Math.round((tweets.length / maxTweets) * 100);
+        logger.debug(`Progress: ${progress}% (${tweets.length}/${maxTweets})`, null, 'twitter');
+      }
+      
+      if (tweets.length >= maxTweets) {
+        break;
+      }
+      
+      // Scroll for more
+      scrollAttempts++;
+      await page.evaluate(() => {
+        window.scrollBy(0, window.innerHeight);
+      });
+      
+      const delay = SCROLL_DELAY_MS + Math.random() * SCROLL_DELAY_VARIANCE_MS;
+      await page.waitForTimeout(delay);
+    }
+    
+    logger.success(`Extracted ${tweets.length} tweets from list "${name}"`, 'twitter');
+    logger.info(`Scroll attempts: ${scrollAttempts}`, 'twitter');
+    
+    // Close browser
+    await context.close();
+    logger.info('Browser closed (session saved)', 'twitter');
+    
+    return {
+      success: true,
+      data: {
+        tweets: tweets,
+        listInfo: {
+          name,
+          listId,
+          url,
+          tweetCount: tweets.length
+        }
+      },
+      error: null
+    };
+    
+  } catch (error) {
+    logger.error(`Failed to extract list "${name}"`, error, 'twitter');
+    
+    if (context) {
+      await context.close().catch(() => {});
+    }
+    
+    return {
+      success: false,
+      data: null,
+      error: error.message
+    };
+  }
+}
+
 module.exports = {
   extractBookmarks,
   extractNewBookmarks,
+  extractListTweets,
   testExtraction
 };

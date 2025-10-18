@@ -1,0 +1,8 @@
+{
+  "lists": [],
+  "settings": {
+    "syncEnabled": true,
+    "createSeparateNotebooks": true,
+    "notebookNameFormat": "BrainBrief - {listName} - {date}"
+  }
+}

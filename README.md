@@ -15,9 +15,11 @@ npm start
 ## ✨ Features
 
 - ✅ **Incremental sync** - Only extracts NEW bookmarks (fast!)
+- ✅ **Twitter Lists support** - Extract tweets from any Twitter List
 - ✅ **Rich content extraction** - YouTube URLs, images, PDFs, quoted tweets
 - ✅ **Smart duplicate detection** - Never uploads the same bookmark twice
 - ✅ **Automatic NotebookLM upload** - Hands-free integration
+- ✅ **Separate notebooks per list** - Organized by topic
 - ✅ **Daily auto-sync** - Set it and forget it
 - ✅ **Local database** - All your bookmarks stored in SQLite
 
@@ -60,9 +62,46 @@ npm start
 
 **Features:**
 - System tray icon
-- "Sync Now" button
+- "Sync Bookmarks" button
+- "Sync Lists" button
 - Enable daily auto-sync (8 AM)
 - System notifications
+
+### Twitter Lists
+
+**Step 1: Discover Your Lists**
+```bash
+npm run discover:lists
+```
+This will:
+- Navigate to your Lists page
+- Extract all list names and URLs
+- Save to `lists-config.json`
+
+**Step 2: Edit Config**
+Edit `lists-config.json` to enable/disable lists:
+```json
+{
+  "lists": [
+    {
+      "name": "AI Leaders",
+      "url": "https://x.com/i/lists/123456",
+      "enabled": true,  // Set to false to skip
+      "maxTweets": 50
+    }
+  ]
+}
+```
+
+**Step 3: Sync Lists**
+- **Electron App:** Click tray icon → "Sync Lists"
+- **CLI:** `npm run sync:lists`
+
+Each list creates a separate NotebookLM notebook:
+```
+BrainBrief - AI Leaders - 2025-10-18
+BrainBrief - Tech News - 2025-10-18
+```
 
 ## 📊 What Gets Extracted
 

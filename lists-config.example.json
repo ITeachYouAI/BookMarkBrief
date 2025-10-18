@@ -1,0 +1,18 @@
+{
+  "lists": [
+    {
+      "name": "AI Leaders #2 of 2",
+      "url": "https://x.com/i/lists/YOUR_LIST_ID_HERE",
+      "listId": "YOUR_LIST_ID_HERE",
+      "enabled": true,
+      "maxTweets": 50,
+      "memberCount": "3.4K members"
+    }
+  ],
+  "settings": {
+    "syncEnabled": true,
+    "createSeparateNotebooks": true,
+    "notebookNameFormat": "BrainBrief - {listName} - {date}"
+  }
+}
+

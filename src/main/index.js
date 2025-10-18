@@ -75,9 +75,9 @@ function createTray() {
       }
     },
     {
-      label: 'Sync Now',
+      label: 'Sync Bookmarks',
       click: async () => {
-        logger.info('Manual sync from tray menu', 'main');
+        logger.info('Manual bookmark sync from tray menu', 'main');
         const result = await scheduler.runSync({ limit: 50 });
         
         if (result.success) {
@@ -86,8 +86,56 @@ function createTray() {
           showSystemNotification('Sync Failed', result.error);
         }
         
-        // Refresh tray menu to update schedule status
         updateTrayMenu();
+      }
+    },
+    {
+      label: 'Sync Lists',
+      click: async () => {
+        logger.info('Manual list sync from tray menu', 'main');
+        
+        const fs = require('fs');
+        const path = require('path');
+        const { extractListTweets } = require('../automation/twitter');
+        const { uploadListTweets } = require('../automation/notebooklm');
+        
+        try {
+          // Load lists config
+          const configPath = path.join(__dirname, '../../lists-config.json');
+          if (!fs.existsSync(configPath)) {
+            showSystemNotification('No Lists Config', 'Run discovery first');
+            return;
+          }
+          
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+          const enabledLists = config.lists.filter(l => l.enabled);
+          
+          if (enabledLists.length === 0) {
+            showSystemNotification('No Lists Enabled', 'Enable lists in config');
+            return;
+          }
+          
+          showSystemNotification('Syncing Lists', `${enabledLists.length} lists...`);
+          
+          let synced = 0;
+          for (const list of enabledLists) {
+            const extractResult = await extractListTweets(list);
+            if (extractResult.success && extractResult.data.tweets.length > 0) {
+              const uploadResult = await uploadListTweets(extractResult.data.tweets, {
+                name: list.name,
+                listId: list.listId,
+                url: list.url
+              });
+              if (uploadResult.success) synced++;
+            }
+          }
+          
+          showSystemNotification('Lists Synced', `${synced}/${enabledLists.length} lists uploaded`);
+          
+        } catch (error) {
+          logger.error('List sync failed', error, 'main');
+          showSystemNotification('List Sync Failed', error.message);
+        }
       }
     },
     { type: 'separator' },

@@ -760,8 +760,45 @@ function testFileCreation(bookmarks) {
   return createBookmarkFile(bookmarks, filePath);
 }
 
+/**
+ * Upload tweets from a Twitter List to NotebookLM
+ * Creates a list-specific notebook: "BrainBrief - {listName} - {date}"
+ * 
+ * @param {Array<Object>} tweets - Array of tweet objects (same format as bookmarks)
+ * @param {Object} listInfo - List metadata
+ * @param {string} listInfo.name - List name
+ * @param {string} listInfo.listId - List ID
+ * @param {string} listInfo.url - List URL
+ * @returns {Object} { success, data, error }
+ */
+async function uploadListTweets(tweets, listInfo) {
+  try {
+    logger.info(`Uploading ${tweets.length} tweets from list: "${listInfo.name}"`, 'notebooklm');
+    
+    // Generate list-specific notebook name with date
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const notebookName = `BrainBrief - ${listInfo.name} - ${today}`;
+    
+    logger.info(`Notebook name: "${notebookName}"`, 'notebooklm');
+    
+    // Use existing uploadBookmarks function with custom notebook name
+    const result = await uploadBookmarks(tweets, { notebookName });
+    
+    return result;
+    
+  } catch (error) {
+    logger.error('Failed to upload list tweets', error, 'notebooklm');
+    return {
+      success: false,
+      data: null,
+      error: error.message
+    };
+  }
+}
+
 module.exports = {
   uploadBookmarks,
+  uploadListTweets,
   testFileCreation,
   createBookmarkFile,
   selectNotebook,

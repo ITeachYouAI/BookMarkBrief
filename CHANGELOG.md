@@ -1,5 +1,49 @@
 # BrainBrief Changelog
 
+## [1.1.0] - 2025-10-18
+
+### ✨ NEW FEATURE: Twitter Lists Support
+
+**Extract tweets from Twitter Lists and sync to NotebookLM!**
+
+**Features:**
+- ✅ Extract tweets from any Twitter List
+- ✅ Reuses bookmark extraction logic (YouTube, images, threads, etc.)
+- ✅ Separate NotebookLM notebook per list
+- ✅ List-specific notebook naming: `BrainBrief - {ListName} - {Date}`
+- ✅ Enable/disable individual lists in config
+- ✅ Integrated into Electron app tray menu
+- ✅ CLI support: `npm run sync:lists`
+
+**Database Schema:**
+- Added `list_metadata` table for list information
+- Added `list_tweets` table for tweet-list associations
+- Many-to-many relationship (tweets can appear in multiple lists)
+
+**New Scripts:**
+- `npm run discover:lists` - Auto-discover your Twitter Lists
+- `npm run sync:lists` - Sync all enabled lists
+- `click-lists.js` - Interactive list discovery
+
+**Electron App:**
+- Added "Sync Lists" button to tray menu
+- Renamed "Sync Now" to "Sync Bookmarks" for clarity
+
+**Files Added:**
+- `run-sync-lists.js` - CLI runner for lists
+- `click-lists.js` - List discovery tool
+- `lists-config.example.json` - Example configuration
+
+**Files Modified:**
+- `src/automation/twitter.js` - Added `extractListTweets()`
+- `src/automation/notebooklm.js` - Added `uploadListTweets()`
+- `src/db/schema.sql` - Added list tables and indexes
+- `src/main/index.js` - Added "Sync Lists" menu item
+- `package.json` - Added list-related scripts
+- `README.md` - Added Lists documentation
+
+---
+
 ## [1.0.1] - 2025-10-18
 
 ### 🐛 Bug Fixes
