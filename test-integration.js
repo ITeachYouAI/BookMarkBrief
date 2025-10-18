@@ -26,7 +26,7 @@ async function testIntegration() {
   try {
     // Step 1: Initialize database
     logger.info('Step 1: Initialize database', 'integration');
-    const dbInit = db.initDatabase();
+    const dbInit = await db.initDatabase();
     if (!dbInit.success) {
       logger.error('Failed to initialize database', dbInit.error, 'integration');
       return false;
@@ -60,7 +60,7 @@ async function testIntegration() {
     logger.info('');
     logger.info('Step 3: Save bookmark to database', 'integration');
     
-    const saveResult = db.saveBookmark(bookmark);
+    const saveResult = await db.saveBookmark(bookmark);
     if (!saveResult.success) {
       logger.error('Failed to save bookmark', saveResult.error, 'integration');
       return false;
@@ -72,7 +72,7 @@ async function testIntegration() {
     logger.info('');
     logger.info('Step 4: Verify bookmark in database', 'integration');
     
-    const existsResult = db.bookmarkExists(bookmark.id);
+    const existsResult = await db.bookmarkExists(bookmark.id);
     if (!existsResult.success || !existsResult.data) {
       logger.error('Bookmark not found in database', 'integration');
       return false;
@@ -84,7 +84,7 @@ async function testIntegration() {
     logger.info('');
     logger.info('Step 5: Get database stats', 'integration');
     
-    const statsResult = db.getStats();
+    const statsResult = await db.getStats();
     if (!statsResult.success) {
       logger.error('Failed to get stats', statsResult.error, 'integration');
       return false;

@@ -24,30 +24,50 @@ let isScheduleEnabled = false;
 /**
  * Run sync process (used by both manual and scheduled syncs)
  * 
+ * USES INCREMENTAL SYNC by default:
+ * - Extracts only NEW bookmarks (stops at existing)
+ * - Much faster for daily syncs
+ * - Avoids re-processing duplicates
+ * 
  * @param {Object} options - Sync options
- * @param {number} options.limit - Number of bookmarks to extract
+ * @param {number} options.limit - Maximum new bookmarks to extract
+ * @param {boolean} options.useIncremental - Use incremental sync (default: true)
  * @param {Function} options.onProgress - Progress callback
  * @returns {Promise<Object>} { success, data, error }
  */
 async function runSync(options = {}) {
-  const { limit = DEFAULT_LIMIT, onProgress = null } = options;
+  const { 
+    limit = DEFAULT_LIMIT, 
+    useIncremental = true,  // Use incremental by default
+    onProgress = null 
+  } = options;
   
   try {
-    logger.info(`Starting scheduled sync (limit: ${limit})`, 'scheduler');
+    const syncType = useIncremental ? 'INCREMENTAL' : 'FULL';
+    logger.info(`Starting ${syncType} sync (max: ${limit})`, 'scheduler');
     
     if (onProgress) {
-      onProgress({ status: 'extracting', message: 'Extracting bookmarks from Twitter...' });
+      onProgress({ status: 'extracting', message: 'Extracting new bookmarks from Twitter...' });
     }
     
-    // Extract from Twitter
-    const twitterResult = await twitter.extractBookmarks({ limit });
+    // Extract from Twitter (incremental or full)
+    const twitterResult = useIncremental
+      ? await twitter.extractNewBookmarks({ maxNew: limit })
+      : await twitter.extractBookmarks({ limit });
+      
     if (!twitterResult.success) {
       logger.error('Twitter extraction failed', twitterResult.error, 'scheduler');
       return twitterResult;
     }
     
     const bookmarks = twitterResult.data.bookmarks;
-    logger.info(`Extracted ${bookmarks.length} bookmarks`, 'scheduler');
+    logger.info(`Extracted ${bookmarks.length} NEW bookmarks`, 'scheduler');
+    
+    // Log metadata if incremental
+    if (useIncremental && twitterResult.metadata) {
+      const meta = twitterResult.metadata;
+      logger.info(`Stopped: ${meta.stoppedReason} (checked ${meta.totalExtracted}, found ${meta.newBookmarks} new)`, 'scheduler');
+    }
     
     if (onProgress) {
       onProgress({ status: 'saving', message: `Saving ${bookmarks.length} bookmarks to database...` });

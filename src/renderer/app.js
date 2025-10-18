@@ -99,10 +99,15 @@ async function syncBookmarks() {
   syncNowBtn.disabled = true;
   syncNowBtn.textContent = 'Syncing...';
   
-  console.log('🔄 Starting sync...');
+  console.log('🔄 Starting incremental sync...');
   
   try {
-    const result = await ipcRenderer.invoke('sync-bookmarks', { limit: 10 });
+    // Use incremental sync (extracts only NEW bookmarks, stops at existing)
+    // Limit: 500 max (but will stop early if hits existing bookmark)
+    const result = await ipcRenderer.invoke('sync-bookmarks', { 
+      limit: 500, 
+      useIncremental: true 
+    });
     
     if (result.success) {
       console.log('✅ Sync complete:', result.data);

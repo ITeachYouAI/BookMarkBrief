@@ -30,6 +30,10 @@ const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 5000;
 const PAGE_LOAD_TIMEOUT_MS = 60000;
 
+// Incremental sync
+const BATCH_SIZE = 20; // Extract 20 tweets at a time, then check database
+const MAX_NEW_BOOKMARKS = 500; // Safety limit per sync
+
 // URLs
 const TWITTER_BASE_URL = 'https://twitter.com';
 const TWITTER_BOOKMARKS_URL = `${TWITTER_BASE_URL}/i/bookmarks`;
@@ -467,6 +471,172 @@ async function extractBookmarks(options = {}) {
 }
 
 /**
+ * Extract only NEW bookmarks (incremental sync - stops at existing)
+ * 
+ * This is the SMART sync method:
+ * - Twitter shows newest bookmarks first
+ * - Extract in batches
+ * - Check each batch against database
+ * - Stop when we hit a bookmark we already have
+ * 
+ * Benefits:
+ * - Day 1: Extracts all 800 bookmarks
+ * - Day 2: Extracts only 5 new, stops (not 50!)
+ * - Day 3: Extracts 0 new, stops immediately
+ * 
+ * @param {Object} options - Extraction options
+ * @param {number} options.maxNew - Maximum new bookmarks to extract
+ * @returns {Object} { success, data: { count, bookmarks, isIncremental }, error }
+ */
+async function extractNewBookmarks(options = {}) {
+  const { maxNew = MAX_NEW_BOOKMARKS } = options;
+  const db = require('../db/database'); // Import here to avoid circular dependency
+  
+  let context = null;
+  
+  try {
+    logger.info('Starting INCREMENTAL bookmark extraction', 'twitter');
+    logger.info(`Max new bookmarks: ${maxNew}`, 'twitter');
+    
+    // Initialize browser
+    const browserResult = await initBrowser();
+    if (!browserResult.success) {
+      return {
+        success: false,
+        data: { count: 0, bookmarks: [], isIncremental: true },
+        error: browserResult.error
+      };
+    }
+    context = browserResult.data;
+    
+    // Navigate to bookmarks
+    const navResult = await navigateToBookmarks(context);
+    if (!navResult.success) {
+      return {
+        success: false,
+        data: { count: 0, bookmarks: [], isIncremental: true },
+        error: navResult.error
+      };
+    }
+    const page = navResult.data;
+    
+    // Incremental extraction
+    const newBookmarks = [];
+    let foundExisting = false;
+    let scrollAttempts = 0;
+    let totalExtracted = 0;
+    let skippedDuplicates = 0;
+    
+    while (!foundExisting && newBookmarks.length < maxNew) {
+      // Extract current batch
+      const batchResult = await page.evaluate((extractFn, batchSize) => {
+        const tweetElements = Array.from(document.querySelectorAll('article[data-testid="tweet"]'));
+        const results = [];
+        let skipped = 0;
+        
+        tweetElements.slice(0, batchSize + 10).forEach((tweet, index) => {
+          try {
+            const data = eval(`(${extractFn})`)(tweet, index);
+            if (data) {
+              results.push(data);
+            } else {
+              skipped++;
+            }
+          } catch (error) {
+            skipped++;
+          }
+        });
+        
+        return { tweets: results, skipped };
+      }, _extractTweetData.toString(), BATCH_SIZE);
+      
+      const batch = batchResult.tweets;
+      totalExtracted += batch.length;
+      
+      logger.debug(`Extracted batch of ${batch.length} tweets (checking for duplicates...)`, null, 'twitter');
+      
+      // Check each tweet against database
+      for (const bookmark of batch) {
+        // Skip if we already have this one in newBookmarks (within-session duplicate)
+        if (newBookmarks.find(b => b.id === bookmark.id)) {
+          continue;
+        }
+        
+        // Check database
+        const existsResult = await db.bookmarkExists(bookmark.id);
+        
+        if (existsResult.success && existsResult.data === true) {
+          // Found existing bookmark - stop extraction
+          logger.info(`Found existing bookmark (${bookmark.id}), stopping extraction`, 'twitter');
+          logger.info(`This bookmark was synced previously - we've caught up!`, 'twitter');
+          foundExisting = true;
+          skippedDuplicates++;
+          break;
+        }
+        
+        // New bookmark - add it
+        newBookmarks.push(bookmark);
+        
+        if (newBookmarks.length >= maxNew) {
+          logger.warn(`Reached max limit (${maxNew}), stopping`, 'twitter');
+          break;
+        }
+      }
+      
+      if (foundExisting || newBookmarks.length >= maxNew) {
+        break;
+      }
+      
+      // Scroll for more
+      scrollAttempts++;
+      await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+      
+      const delay = SCROLL_DELAY_MS + Math.random() * SCROLL_DELAY_VARIANCE_MS;
+      await page.waitForTimeout(delay);
+      
+      logger.debug(`Scroll ${scrollAttempts}: ${newBookmarks.length} new bookmarks so far`, null, 'twitter');
+    }
+    
+    logger.success(`Incremental extraction complete: ${newBookmarks.length} NEW bookmarks`, 'twitter');
+    logger.info(`Total extracted: ${totalExtracted}, New: ${newBookmarks.length}, Duplicates: ${skippedDuplicates}`, 'twitter');
+    
+    // Close browser
+    await context.close();
+    logger.info('Browser closed (session saved)', 'twitter');
+    
+    return {
+      success: true,
+      data: {
+        count: newBookmarks.length,
+        bookmarks: newBookmarks,
+        isIncremental: true
+      },
+      error: null,
+      metadata: {
+        totalExtracted: totalExtracted,
+        newBookmarks: newBookmarks.length,
+        duplicatesSkipped: skippedDuplicates,
+        scrolls: scrollAttempts,
+        stoppedReason: foundExisting ? 'found existing' : 'reached limit'
+      }
+    };
+    
+  } catch (error) {
+    logger.error('Incremental extraction failed', error, 'twitter');
+    
+    if (context) {
+      await context.close().catch(() => {});
+    }
+    
+    return {
+      success: false,
+      data: { count: 0, bookmarks: [], isIncremental: true },
+      error: error.message
+    };
+  }
+}
+
+/**
  * Test extraction (extract 1 bookmark for validation)
  * 
  * @returns {Object} { success, data, error }
@@ -478,5 +648,6 @@ async function testExtraction() {
 
 module.exports = {
   extractBookmarks,
+  extractNewBookmarks,
   testExtraction
 };

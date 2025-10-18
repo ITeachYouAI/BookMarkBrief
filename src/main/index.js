@@ -269,21 +269,32 @@ ipcMain.handle('get-stats', async () => {
 // Sync bookmarks from Twitter
 ipcMain.handle('sync-bookmarks', async (event, options = {}) => {
   try {
-    const { limit = 10 } = options;
-    logger.info(`UI triggered sync (limit: ${limit})`, 'main');
+    const { limit = 50, useIncremental = true } = options;
+    const syncType = useIncremental ? 'incremental' : 'full';
+    logger.info(`UI triggered ${syncType} sync (max: ${limit})`, 'main');
     
     // Send status update to renderer
-    event.sender.send('sync-status', { status: 'extracting', message: 'Extracting bookmarks from Twitter...' });
+    event.sender.send('sync-status', { status: 'extracting', message: 'Extracting NEW bookmarks from Twitter...' });
     
-    // Extract from Twitter
-    const twitterResult = await twitter.extractBookmarks({ limit });
+    // Extract from Twitter (incremental by default - stops at existing)
+    const twitterResult = useIncremental
+      ? await twitter.extractNewBookmarks({ maxNew: limit })
+      : await twitter.extractBookmarks({ limit });
+      
     if (!twitterResult.success) {
       event.sender.send('sync-status', { status: 'error', message: `Twitter extraction failed: ${twitterResult.error}` });
       return twitterResult;
     }
     
     const bookmarks = twitterResult.data.bookmarks;
-    event.sender.send('sync-status', { status: 'saving', message: `Saving ${bookmarks.length} bookmarks to database...` });
+    
+    // Show if incremental sync worked
+    if (useIncremental && twitterResult.metadata) {
+      const meta = twitterResult.metadata;
+      logger.info(`Incremental sync: ${meta.newBookmarks} new, ${meta.duplicatesSkipped} duplicates`, 'main');
+    }
+    
+    event.sender.send('sync-status', { status: 'saving', message: `Saving ${bookmarks.length} NEW bookmarks to database...` });
     
     // Save to database
     const saveResult = await db.saveBookmarks(bookmarks);

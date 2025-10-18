@@ -95,12 +95,11 @@ async function initDatabase() {
   try {
     logger.info('Initializing database (sql.js)', 'db');
     
-    // Initialize sql.js engine
-    const engineResult = await initEngine();
-    if (!engineResult.success) {
-      return engineResult;
+    // Initialize sql.js engine (simplified - no wrapper)
+    if (!SQL) {
+      SQL = await initSqlJs();
+      logger.debug('sql.js engine initialized', null, 'db');
     }
-    SQL = engineResult.data;
     
     // Create data directory if it doesn't exist
     if (!fs.existsSync(DB_DIR)) {
@@ -135,6 +134,7 @@ async function initDatabase() {
     
   } catch (error) {
     logger.error('Failed to initialize database', error, 'db');
+    logger.error('Error details:', error.stack, 'db');
     return {
       success: false,
       data: null,

@@ -25,7 +25,7 @@ async function testDatabase() {
   
   // Test 1: Initialize database
   logger.info('Test 1: Initialize database', 'test');
-  const initResult = db.initDatabase();
+  const initResult = await db.initDatabase();
   if (initResult.success) {
     logger.success('✅ Database initialized', 'test');
   } else {
@@ -45,7 +45,7 @@ async function testDatabase() {
     scraped_at: new Date().toISOString()
   };
   
-  const saveResult = db.saveBookmark(testBookmark);
+  const saveResult = await db.saveBookmark(testBookmark);
   if (saveResult.success) {
     logger.success('✅ Bookmark saved', 'test');
   } else {
@@ -56,7 +56,7 @@ async function testDatabase() {
   // Test 3: Get bookmark count
   logger.info('');
   logger.info('Test 3: Get bookmark count', 'test');
-  const countResult = db.getBookmarkCount();
+  const countResult = await db.getBookmarkCount();
   if (countResult.success) {
     logger.success(`✅ Bookmark count: ${countResult.data}`, 'test');
   } else {
@@ -67,7 +67,7 @@ async function testDatabase() {
   // Test 4: Check if bookmark exists
   logger.info('');
   logger.info('Test 4: Check if bookmark exists', 'test');
-  const existsResult = db.bookmarkExists('test_123456');
+  const existsResult = await db.bookmarkExists('test_123456');
   if (existsResult.success && existsResult.data === true) {
     logger.success('✅ Bookmark exists in database', 'test');
   } else {
@@ -78,7 +78,7 @@ async function testDatabase() {
   // Test 5: Get bookmarks
   logger.info('');
   logger.info('Test 5: Get bookmarks', 'test');
-  const getResult = db.getBookmarks({ limit: 10 });
+  const getResult = await db.getBookmarks({ limit: 10 });
   if (getResult.success) {
     logger.success(`✅ Retrieved ${getResult.data.length} bookmarks`, 'test');
     if (getResult.data.length > 0) {
@@ -92,7 +92,7 @@ async function testDatabase() {
   // Test 6: Get stats
   logger.info('');
   logger.info('Test 6: Get database stats', 'test');
-  const statsResult = db.getStats();
+  const statsResult = await db.getStats();
   if (statsResult.success) {
     logger.success('✅ Database stats:', 'test');
     logger.info(`   Total bookmarks: ${statsResult.data.total_bookmarks}`, 'test');
