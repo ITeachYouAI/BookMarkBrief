@@ -1,5 +1,97 @@
 {
-  "lists": [],
+  "lists": [
+    {
+      "name": "Career",
+      "url": "https://x.com/i/lists/1441289999119368195",
+      "listId": "1441289999119368195",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "Thread writers - Twitter",
+      "url": "https://x.com/i/lists/1488661860056387585",
+      "listId": "1488661860056387585",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "Based",
+      "url": "https://x.com/i/lists/1585336376249106432",
+      "listId": "1585336376249106432",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "AI Leaders #2 of 2",
+      "url": "https://x.com/i/lists/1828820239175590166",
+      "listId": "1828820239175590166",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "AI Memes Info",
+      "url": "https://x.com/i/lists/1856857936880165305",
+      "listId": "1856857936880165305",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "Gauntlet AI Cohort 1",
+      "url": "https://x.com/i/lists/1876334018150678826",
+      "listId": "1876334018150678826",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "Gauntlet AI cohort 2",
+      "url": "https://x.com/i/lists/1932789814568329514",
+      "listId": "1932789814568329514",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "Solana Influencers",
+      "url": "https://x.com/i/lists/1777037601578287430",
+      "listId": "1777037601578287430",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "Solopreneurs",
+      "url": "https://x.com/i/lists/1581374983560777730",
+      "listId": "1581374983560777730",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "Superbuilders",
+      "url": "https://x.com/i/lists/1975969552132608103",
+      "listId": "1975969552132608103",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "Superbuilders",
+      "url": "https://x.com/i/lists/1930676874986111271",
+      "listId": "1930676874986111271",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "TI Builders",
+      "url": "https://x.com/i/lists/1892153266089402383",
+      "listId": "1892153266089402383",
+      "enabled": true,
+      "maxTweets": 50
+    },
+    {
+      "name": "viral app founders",
+      "url": "https://x.com/i/lists/1748648376080666720",
+      "listId": "1748648376080666720",
+      "enabled": true,
+      "maxTweets": 50
+    }
+  ],
   "settings": {
     "syncEnabled": true,
     "createSeparateNotebooks": true,

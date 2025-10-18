@@ -83,8 +83,8 @@ CREATE INDEX IF NOT EXISTS idx_sources_notebook ON uploaded_sources(notebook_id)
 CREATE VIEW IF NOT EXISTS bookmark_stats AS
 SELECT 
   COUNT(DISTINCT bookmarks.tweet_id) as total_bookmarks,
-  COUNT(DISTINCT lists.list_name) as total_lists,
+  COUNT(DISTINCT list_tweets.list_id) as total_lists,
   MAX(bookmarks.scraped_at) as last_sync
 FROM bookmarks
-LEFT JOIN lists ON bookmarks.tweet_id = lists.tweet_id;
+LEFT JOIN list_tweets ON bookmarks.tweet_id = list_tweets.tweet_id;
 
