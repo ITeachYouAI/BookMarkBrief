@@ -97,8 +97,8 @@ async function syncBookmarks() {
   }
   
   isSyncing = true;
-  syncNowBtn.disabled = true;
-  syncNowBtn.textContent = 'Syncing...';
+  syncBookmarksBtn.disabled = true;
+  syncBookmarksBtn.textContent = 'Syncing...';
   
   console.log('🔄 Starting incremental sync...');
   
@@ -127,8 +127,8 @@ async function syncBookmarks() {
     showNotification('Error', error.message, 'error');
   } finally {
     isSyncing = false;
-    syncNowBtn.disabled = false;
-    syncNowBtn.textContent = 'Sync Now';
+    syncBookmarksBtn.disabled = false;
+    syncBookmarksBtn.textContent = '🔖 Sync Bookmarks';
   }
 }
 
