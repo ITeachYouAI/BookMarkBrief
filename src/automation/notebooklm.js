@@ -565,9 +565,10 @@ async function uploadFile(page, filePath, isNewNotebook = false) {
  * @returns {Object} { success, data: { uploaded, filePath, notebookName, existed }, error }
  */
 async function uploadBookmarks(bookmarks, options = {}) {
-  const { notebookName = null } = options;
+  const { notebookName: customNotebookName = null } = options;
   
   let context = null;
+  let finalNotebookName = customNotebookName || 'BrainBrief - Twitter Bookmarks';
   
   try {
     logger.info('Starting AUTOMATED NotebookLM upload', 'notebooklm');
@@ -576,14 +577,15 @@ async function uploadBookmarks(bookmarks, options = {}) {
     let targetNotebook;
     
     // Step 1: Get notebook name
-    if (notebookName) {
+    if (customNotebookName) {
       // Custom notebook name provided (for Lists)
-      logger.info(`Using custom notebook name: "${notebookName}"`, 'notebooklm');
+      logger.info(`Using custom notebook name: "${customNotebookName}"`, 'notebooklm');
       targetNotebook = { 
         id: null, 
-        name: notebookName, 
+        name: customNotebookName, 
         sourceCount: 0 
       };
+      finalNotebookName = customNotebookName;
     } else {
       // Use tracker for bookmarks (handles rotation)
       const activeNotebookResult = await notebookTracker.getActiveNotebook(bookmarks);
@@ -594,8 +596,10 @@ async function uploadBookmarks(bookmarks, options = {}) {
           name: 'BrainBrief - Twitter Bookmarks', 
           sourceCount: 0 
         };
+        finalNotebookName = 'BrainBrief - Twitter Bookmarks';
       } else {
         targetNotebook = activeNotebookResult.data;
+        finalNotebookName = targetNotebook.name;
       }
     }
     
@@ -845,7 +849,7 @@ async function uploadBookmarks(bookmarks, options = {}) {
     
     return {
       success: false,
-      data: { uploaded: false, filePath: null, notebookName },
+      data: { uploaded: false, filePath: null, notebookName: finalNotebookName },
       error: error.message
     };
   }
