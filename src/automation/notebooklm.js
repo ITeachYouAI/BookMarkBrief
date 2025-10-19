@@ -969,13 +969,22 @@ async function uploadURL(page, url, sourceType = 'youtube') {
     await page.waitForSelector('text=YouTube URL', { timeout: 10000 });
     logger.success('YouTube URL screen loaded', 'notebooklm');
     
-    // STEP 7: Wait and fill YouTube URL
-    logger.info('STEP 4: Filling YouTube URL...', 'notebooklm');
+    // STEP 7: Find the input field and CLICK IT to focus
+    logger.info('STEP 4: Finding and clicking YouTube URL input...', 'notebooklm');
     await page.waitForTimeout(3000);
     
-    // Just type the URL (focus should be on input already)
+    // Look for the input field with "Paste YouTube URL" placeholder
+    const inputField = page.locator('input').last(); // Usually the last input in modal
+    
+    // CLICK to focus it
+    await inputField.click({ timeout: 10000 });
+    logger.success('Clicked input field (focused)', 'notebooklm');
+    
+    await page.waitForTimeout(500);
+    
+    // Now type the URL
     await page.keyboard.type(url);
-    logger.success(`Typed URL: ${url}`, 'notebooklm');
+    logger.success(`Typed URL into field: ${url}`, 'notebooklm');
     
     // STEP 8: Submit (wait for validation, then press Enter)
     logger.info('STEP 5: Waiting for URL validation...', 'notebooklm');
