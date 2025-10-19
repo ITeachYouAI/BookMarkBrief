@@ -1,5 +1,51 @@
 # BrainBrief Changelog
 
+## [1.3.0] - 2025-10-19
+
+### 🎉 YouTube Auto-Transcription WORKING!
+
+**Major Feature:**
+- ✅ YouTube videos automatically extracted from Twitter cards
+- ✅ t.co shortened links expanded to real YouTube URLs
+- ✅ Videos uploaded as sources to NotebookLM
+- ✅ Full video transcription by NotebookLM
+- ✅ Searchable video content in AI chat
+
+**Implementation:**
+- Twitter card detection (div[data-testid="card.wrapper"])
+- t.co HTTP redirect following (followRedirect function)
+- NotebookLM YouTube button automation (mat-chip click)
+- Keyboard input for URL paste (focuses input first)
+- 3-second validation wait before submit
+
+**UI Redesign:**
+- Clean minimal interface focused on core actions
+- Large prominent sync buttons
+- Stats grid (Bookmarks, Lists, YouTube count)
+- Removed clutter (status indicators, export button, instructions)
+- "Open NotebookLM" quick access button
+
+**Test Results:**
+- ✅ Extracted YouTube from Twitter card with t.co link
+- ✅ Expanded https://t.co/xxx → https://youtu.be/VIDEO_ID
+- ✅ Uploaded to NotebookLM successfully
+- ✅ Verified transcript appears in NotebookLM
+- ✅ AI can answer questions about video content
+
+**Performance:**
+- YouTube extraction: <1 second
+- URL expansion: <1 second per link
+- Upload per video: ~30 seconds
+- Total: 10 bookmarks + 1 YouTube = ~45 seconds
+
+**Fixes:**
+- Fixed variable scoping errors
+- Fixed Electron tray menu API usage
+- Fixed Sync Bookmarks button not working
+- Fixed lastSync UI variable references
+
+---
+
 ## [1.2.0] - 2025-10-18
 
 ### ✨ Settings Page + Multi-Select Lists
