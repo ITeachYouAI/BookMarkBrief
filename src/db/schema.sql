@@ -69,6 +69,17 @@ CREATE TABLE IF NOT EXISTS uploaded_sources (
   FOREIGN KEY(notebook_id) REFERENCES notebooklm_notebooks(id) ON DELETE CASCADE
 );
 
+-- Uploaded URLs table
+-- Tracks YouTube/PDF URLs added as sources (prevents duplicates)
+CREATE TABLE IF NOT EXISTS uploaded_urls (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  notebook_name TEXT NOT NULL,         -- Which notebook it was added to
+  url TEXT NOT NULL,                   -- Full URL
+  url_type TEXT NOT NULL,              -- 'youtube', 'pdf', 'website'
+  uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(notebook_name, url)           -- Prevent same URL twice in same notebook
+);
+
 -- Index for faster queries
 CREATE INDEX IF NOT EXISTS idx_bookmarks_tweet_id ON bookmarks(tweet_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_scraped_at ON bookmarks(scraped_at);
@@ -78,6 +89,8 @@ CREATE INDEX IF NOT EXISTS idx_list_tweets_list ON list_tweets(list_id);
 CREATE INDEX IF NOT EXISTS idx_list_tweets_tweet ON list_tweets(tweet_id);
 CREATE INDEX IF NOT EXISTS idx_notebooks_active ON notebooklm_notebooks(is_active);
 CREATE INDEX IF NOT EXISTS idx_sources_notebook ON uploaded_sources(notebook_id);
+CREATE INDEX IF NOT EXISTS idx_uploaded_urls_notebook ON uploaded_urls(notebook_name);
+CREATE INDEX IF NOT EXISTS idx_uploaded_urls_url ON uploaded_urls(url);
 
 -- Stats view (for UI display)
 CREATE VIEW IF NOT EXISTS bookmark_stats AS

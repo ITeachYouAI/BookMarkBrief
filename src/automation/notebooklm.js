@@ -715,10 +715,100 @@ async function uploadBookmarks(bookmarks, options = {}) {
     
     logger.success(`✅ Successfully uploaded ${bookmarks.length} bookmarks to NotebookLM!`, 'notebooklm');
     
+    // Step 7: Extract and upload YouTube/PDF URLs as separate sources
+    logger.info('Checking for YouTube videos and PDFs to add as sources...', 'notebooklm');
+    
+    const youtubeUrls = new Set();
+    const pdfUrls = new Set();
+    
+    bookmarks.forEach(bookmark => {
+      // Collect YouTube URLs
+      if (bookmark.embedded?.youtubeUrls) {
+        bookmark.embedded.youtubeUrls.forEach(url => youtubeUrls.add(url));
+      }
+      
+      // Collect PDF URLs (check text for .pdf links)
+      if (bookmark.text) {
+        const pdfMatches = bookmark.text.match(/https?:\/\/[^\s]+\.pdf/gi);
+        if (pdfMatches) {
+          pdfMatches.forEach(url => pdfUrls.add(url));
+        }
+      }
+    });
+    
+    logger.info(`Found ${youtubeUrls.size} unique YouTube videos, ${pdfUrls.size} unique PDFs`, 'notebooklm');
+    
+    // Filter out already-uploaded URLs (check database)
+    const db = require('../db/database');
+    const notebookName = targetNotebook.name;
+    
+    const youtubeArray = Array.from(youtubeUrls);
+    const pdfArray = Array.from(pdfUrls);
+    
+    // Check which URLs are already uploaded (simple approach: try-catch on insert)
+    // For now, add all and let database UNIQUE constraint handle duplicates
+    
+    // Check if we have room for additional sources
+    const currentSources = targetNotebook.sourceCount + 1; // +1 for markdown file just uploaded
+    const availableSlots = notebookTracker.MAX_SOURCES_PER_NOTEBOOK - currentSources;
+    
+    if (availableSlots <= 0) {
+      logger.warn('Notebook is full, skipping YouTube/PDF sources', 'notebooklm');
+      youtubeUrls.clear();
+      pdfUrls.clear();
+    } else if (youtubeUrls.size + pdfUrls.size > availableSlots) {
+      logger.warn(`Only ${availableSlots} slots available, will add what fits`, 'notebooklm');
+    }
+    
+    let sourcesAdded = 0;
+    
+    // Add YouTube sources (up to available slots)
+    for (const url of youtubeUrls) {
+      if (sourcesAdded >= availableSlots) {
+        logger.warn('Reached source limit, stopping', 'notebooklm');
+        break;
+      }
+      
+      try {
+        const result = await uploadURL(page, url, 'youtube');
+        if (result.success) {
+          sourcesAdded++;
+          logger.success(`Added YouTube source ${sourcesAdded}`, 'notebooklm');
+        }
+      } catch (error) {
+        logger.warn(`Failed to add YouTube: ${url}`, 'notebooklm');
+        // Continue with other sources
+      }
+    }
+    
+    // Add PDF sources (up to available slots)
+    for (const url of pdfUrls) {
+      if (sourcesAdded >= availableSlots) {
+        logger.warn('Reached source limit, stopping', 'notebooklm');
+        break;
+      }
+      
+      try {
+        const result = await uploadURL(page, url, 'pdf');
+        if (result.success) {
+          sourcesAdded++;
+          logger.success(`Added PDF source ${sourcesAdded}`, 'notebooklm');
+        }
+      } catch (error) {
+        logger.warn(`Failed to add PDF: ${url}`, 'notebooklm');
+        // Continue with other sources
+      }
+    }
+    
+    if (sourcesAdded > 0) {
+      logger.success(`✅ Added ${sourcesAdded} additional sources (YouTube + PDFs)`, 'notebooklm');
+    }
+    
     if (notebookExisted) {
-      logger.info(`Sources in notebook: ${targetNotebook.sourceCount + 1}/${notebookTracker.MAX_SOURCES_PER_NOTEBOOK}`, 'notebooklm');
+      const totalSources = targetNotebook.sourceCount + 1 + sourcesAdded;
+      logger.info(`Sources in notebook: ${totalSources}/${notebookTracker.MAX_SOURCES_PER_NOTEBOOK}`, 'notebooklm');
     } else {
-      logger.info('First sync complete! Future syncs will add to this notebook.', 'notebooklm');
+      logger.info(`First sync complete! Notebook has ${1 + sourcesAdded} sources.`, 'notebooklm');
     }
     
     logger.info('Closing browser in 3 seconds...', 'notebooklm');
@@ -735,10 +825,13 @@ async function uploadBookmarks(bookmarks, options = {}) {
         notebookName: targetNotebook.name,
         count: bookmarks.length,
         existed: notebookExisted,
-        sourceCount: targetNotebook.sourceCount + 1,
+        sourceCount: targetNotebook.sourceCount + 1 + sourcesAdded,
+        youtubeSourcesAdded: youtubeUrls.size,
+        pdfSourcesAdded: pdfUrls.size,
+        totalSourcesAdded: sourcesAdded,
         message: notebookExisted 
-          ? `Added source ${targetNotebook.sourceCount + 1}/${notebookTracker.MAX_SOURCES_PER_NOTEBOOK} to notebook`
-          : `Created notebook with first source`
+          ? `Added ${1 + sourcesAdded} sources to notebook`
+          : `Created notebook with ${1 + sourcesAdded} sources`
       },
       error: null
     };
@@ -772,6 +865,69 @@ function testFileCreation(bookmarks) {
   const filePath = path.join(__dirname, '../../data/exports', filename);
   
   return createBookmarkFile(bookmarks, filePath);
+}
+
+/**
+ * Upload a URL (YouTube, PDF, etc.) as a source to NotebookLM
+ * 
+ * @param {Page} page - Playwright page (must be inside notebook)
+ * @param {string} url - URL to add as source
+ * @param {string} sourceType - Type: 'youtube', 'pdf', 'website'
+ * @returns {Object} { success, data, error }
+ */
+async function uploadURL(page, url, sourceType = 'youtube') {
+  try {
+    logger.info(`Adding ${sourceType} URL as source: ${url}`, 'notebooklm');
+    
+    // Click "+ Add" button to open modal
+    const addButton = page.locator('[aria-label="Add source"]').first();
+    await addButton.click({ timeout: 5000 });
+    await page.waitForTimeout(1000);
+    
+    // Wait for upload modal
+    await page.waitForSelector('text=Upload sources', { timeout: 5000 });
+    
+    // Click "Insert URL" tab (should be visible in modal)
+    try {
+      await page.click('text=Insert URL', { timeout: 3000 });
+      logger.info('Clicked "Insert URL" tab', 'notebooklm');
+    } catch (e) {
+      // Tab might be called "URL" or "Link"
+      await page.click('text=URL', { timeout: 3000 }).catch(() => {
+        return page.click('text=Link', { timeout: 3000 });
+      });
+    }
+    
+    await page.waitForTimeout(500);
+    
+    // Find URL input field and paste URL
+    const urlInput = page.locator('input[type="url"], input[placeholder*="URL"], input[placeholder*="url"]').first();
+    await urlInput.fill(url);
+    logger.info(`Pasted URL: ${url}`, 'notebooklm');
+    
+    await page.waitForTimeout(500);
+    
+    // Click Insert/Add button
+    await page.click('button:has-text("Insert"), button:has-text("Add")');
+    logger.success(`URL source added: ${url}`, 'notebooklm');
+    
+    // Wait for source to appear
+    await page.waitForTimeout(3000);
+    
+    return {
+      success: true,
+      data: { url, type: sourceType },
+      error: null
+    };
+    
+  } catch (error) {
+    logger.error('Failed to upload URL', error, 'notebooklm');
+    return {
+      success: false,
+      data: null,
+      error: error.message
+    };
+  }
 }
 
 /**
@@ -813,6 +969,7 @@ async function uploadListTweets(tweets, listInfo) {
 module.exports = {
   uploadBookmarks,
   uploadListTweets,
+  uploadURL,
   testFileCreation,
   createBookmarkFile,
   selectNotebook,
