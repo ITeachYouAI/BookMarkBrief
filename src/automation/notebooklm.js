@@ -10,6 +10,8 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+const http = require('http');
 const logger = require('../utils/logger');
 const notebookTracker = require('../db/notebook-tracker');
 
@@ -32,6 +34,37 @@ const NOTEBOOKLM_BASE_URL = 'https://notebooklm.google.com';
 const SELECTOR_NEW_NOTEBOOK = '[aria-label="New notebook"]';
 const SELECTOR_UPLOAD_BUTTON = '[aria-label="Upload"]';
 const SELECTOR_FILE_INPUT = 'input[type="file"]';
+
+/**
+ * Follow HTTP redirect to get final URL (for t.co links)
+ * 
+ * @param {string} shortUrl - Shortened URL (e.g., https://t.co/abc123)
+ * @returns {Promise<string>} Final URL after redirect
+ */
+async function followRedirect(shortUrl) {
+  return new Promise((resolve, reject) => {
+    const client = shortUrl.startsWith('https') ? https : http;
+    
+    const req = client.get(shortUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    }, (res) => {
+      // Follow redirects (301, 302, 307, 308)
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const location = res.headers.location;
+        const finalUrl = location.startsWith('http') ? location : new URL(location, shortUrl).href;
+        resolve(finalUrl);
+      } else {
+        resolve(shortUrl);
+      }
+    });
+    
+    req.on('error', reject);
+    req.setTimeout(5000, () => {
+      req.destroy();
+      reject(new Error('Timeout following redirect'));
+    });
+  });
+}
 
 /**
  * Initialize browser with persistent context for NotebookLM
@@ -719,7 +752,10 @@ async function uploadBookmarks(bookmarks, options = {}) {
     
     logger.success(`✅ Successfully uploaded ${bookmarks.length} bookmarks to NotebookLM!`, 'notebooklm');
     
-    // Step 7: Extract and upload YouTube/PDF URLs as separate sources
+    // Step 7: Wait for modal to close after file upload
+    await page.waitForTimeout(2000);
+    
+    // Step 8: Extract and upload YouTube/PDF URLs as separate sources
     logger.info('Checking for YouTube videos and PDFs to add as sources...', 'notebooklm');
     
     const youtubeUrls = new Set();
@@ -740,7 +776,28 @@ async function uploadBookmarks(bookmarks, options = {}) {
       }
     });
     
-    logger.info(`Found ${youtubeUrls.size} unique YouTube videos, ${pdfUrls.size} unique PDFs`, 'notebooklm');
+    // Expand t.co shortened URLs to get real YouTube URLs
+    logger.info('Expanding t.co shortened URLs...', 'notebooklm');
+    const expandedYoutubeUrls = new Set();
+    
+    for (const url of youtubeUrls) {
+      if (url.includes('t.co')) {
+        try {
+          // Follow redirect to get real URL
+          const realUrl = await followRedirect(url);
+          if (realUrl && (realUrl.includes('youtube.com') || realUrl.includes('youtu.be'))) {
+            expandedYoutubeUrls.add(realUrl);
+            logger.debug(`Expanded ${url} → ${realUrl}`, null, 'notebooklm');
+          }
+        } catch (error) {
+          logger.warn(`Failed to expand ${url}, skipping`, 'notebooklm');
+        }
+      } else {
+        expandedYoutubeUrls.add(url);
+      }
+    }
+    
+    logger.info(`Found ${expandedYoutubeUrls.size} unique YouTube videos, ${pdfUrls.size} unique PDFs`, 'notebooklm');
     
     // Filter out already-uploaded URLs (check database)
     const db = require('../db/database');
@@ -758,16 +815,16 @@ async function uploadBookmarks(bookmarks, options = {}) {
     
     if (availableSlots <= 0) {
       logger.warn('Notebook is full, skipping YouTube/PDF sources', 'notebooklm');
-      youtubeUrls.clear();
+      expandedYoutubeUrls.clear();
       pdfUrls.clear();
-    } else if (youtubeUrls.size + pdfUrls.size > availableSlots) {
+    } else if (expandedYoutubeUrls.size + pdfUrls.size > availableSlots) {
       logger.warn(`Only ${availableSlots} slots available, will add what fits`, 'notebooklm');
     }
     
     let sourcesAdded = 0;
     
     // Add YouTube sources (up to available slots)
-    for (const url of youtubeUrls) {
+    for (const url of expandedYoutubeUrls) {
       if (sourcesAdded >= availableSlots) {
         logger.warn('Reached source limit, stopping', 'notebooklm');
         break;
@@ -830,7 +887,7 @@ async function uploadBookmarks(bookmarks, options = {}) {
         count: bookmarks.length,
         existed: notebookExisted,
         sourceCount: targetNotebook.sourceCount + 1 + sourcesAdded,
-        youtubeSourcesAdded: youtubeUrls.size,
+        youtubeSourcesAdded: expandedYoutubeUrls.size,
         pdfSourcesAdded: pdfUrls.size,
         totalSourcesAdded: sourcesAdded,
         message: notebookExisted 
@@ -883,37 +940,44 @@ async function uploadURL(page, url, sourceType = 'youtube') {
   try {
     logger.info(`Adding ${sourceType} URL as source: ${url}`, 'notebooklm');
     
+    // Make sure any previous modal is closed
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+    
     // Click "+ Add" button to open modal
+    logger.info('Clicking "+ Add" to open modal...', 'notebooklm');
     const addButton = page.locator('[aria-label="Add source"]').first();
     await addButton.click({ timeout: 5000 });
+    await page.waitForTimeout(3000);
+    
+    // Wait for Add Sources modal to appear AND buttons to be clickable
+    await page.waitForSelector('text=Add sources', { timeout: 5000 });
+    logger.success('Add sources modal opened', 'notebooklm');
+    
+    // Wait for modal to fully render (buttons appear)
+    await page.waitForTimeout(2000);
+    
+    // Click the YouTube chip button (Material UI chip)
+    logger.info('Clicking YouTube chip button...', 'notebooklm');
+    
+    await page.locator('mat-chip:has-text("YouTube")').click({ timeout: 5000 });
+    logger.success('Clicked "YouTube" chip', 'notebooklm');
+    
     await page.waitForTimeout(1000);
     
-    // Wait for upload modal
-    await page.waitForSelector('text=Upload sources', { timeout: 5000 });
-    
-    // Click "Insert URL" tab (should be visible in modal)
-    try {
-      await page.click('text=Insert URL', { timeout: 3000 });
-      logger.info('Clicked "Insert URL" tab', 'notebooklm');
-    } catch (e) {
-      // Tab might be called "URL" or "Link"
-      await page.click('text=URL', { timeout: 3000 }).catch(() => {
-        return page.click('text=Link', { timeout: 3000 });
-      });
-    }
-    
-    await page.waitForTimeout(500);
-    
     // Find URL input field and paste URL
-    const urlInput = page.locator('input[type="url"], input[placeholder*="URL"], input[placeholder*="url"]').first();
-    await urlInput.fill(url);
-    logger.info(`Pasted URL: ${url}`, 'notebooklm');
+    logger.info('Looking for URL input field...', 'notebooklm');
     
-    await page.waitForTimeout(500);
+    const urlInput = await page.locator('input').first();
+    await urlInput.fill(url, { timeout: 10000 });
+    logger.success(`Pasted URL: ${url}`, 'notebooklm');
     
-    // Click Insert/Add button
-    await page.click('button:has-text("Insert"), button:has-text("Add")');
-    logger.success(`URL source added: ${url}`, 'notebooklm');
+    await page.waitForTimeout(1000);
+    
+    // Press Enter or click Insert button
+    logger.info('Submitting URL...', 'notebooklm');
+    await page.keyboard.press('Enter');
+    logger.success(`URL source submitted: ${url}`, 'notebooklm');
     
     // Wait for source to appear
     await page.waitForTimeout(3000);

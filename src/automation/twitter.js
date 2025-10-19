@@ -281,7 +281,9 @@ function _extractTweetData(tweetElement, index) {
       quotedTweet: null
     };
     
-    // Extract YouTube URLs (from links AND text)
+    // Extract YouTube URLs (from multiple sources)
+    
+    // 1. Direct links with href
     const links = tweetElement.querySelectorAll('a[href*="youtube.com"], a[href*="youtu.be"]');
     links.forEach(link => {
       const href = link.href;
@@ -290,13 +292,42 @@ function _extractTweetData(tweetElement, index) {
       }
     });
     
-    // Also check text for YouTube URLs (in case not linked)
+    // 2. Twitter cards (external link previews with t.co shorteners)
+    const cardWrapper = tweetElement.querySelector('div[data-testid="card.wrapper"]');
+    if (cardWrapper) {
+      const cardText = cardWrapper.innerText || '';
+      
+      // Check if card mentions youtube.com
+      if (cardText.toLowerCase().includes('youtube.com') || cardText.toLowerCase().includes('youtu.be')) {
+        // This is a YouTube card! Get the t.co link
+        const cardLink = cardWrapper.querySelector('a[href*="t.co"]');
+        if (cardLink) {
+          // Use the t.co link - NotebookLM will follow redirects
+          const tcoUrl = cardLink.href;
+          console.log(`Found YouTube card with t.co link: ${tcoUrl}`);
+          
+          if (!embeddedContent.youtubeUrls.includes(tcoUrl)) {
+            embeddedContent.youtubeUrls.push(tcoUrl);
+          }
+        }
+      }
+    }
+    
+    // 3. Direct YouTube links (not in cards)
+    const ytLinks = tweetElement.querySelectorAll('a[href*="youtube.com"], a[href*="youtu.be"]');
+    ytLinks.forEach(link => {
+      const href = link.href;
+      if (href && !href.includes('t.co') && !embeddedContent.youtubeUrls.includes(href)) {
+        embeddedContent.youtubeUrls.push(href);
+      }
+    });
+    
+    // 3. Check text for YouTube URLs (in case not linked)
     if (text) {
       const youtubeRegex = /(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtu\.be\/)[\w-]+/gi;
       const matches = text.match(youtubeRegex);
       if (matches) {
         matches.forEach(match => {
-          // Ensure it's a full URL
           let url = match;
           if (!url.startsWith('http')) {
             url = 'https://' + url;
