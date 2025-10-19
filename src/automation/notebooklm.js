@@ -842,27 +842,15 @@ async function uploadBookmarks(bookmarks, options = {}) {
       }
     }
     
-    // Add PDF sources (up to available slots)
-    for (const url of pdfUrls) {
-      if (sourcesAdded >= availableSlots) {
-        logger.warn('Reached source limit, stopping', 'notebooklm');
-        break;
-      }
-      
-      try {
-        const result = await uploadURL(page, url, 'pdf');
-        if (result.success) {
-          sourcesAdded++;
-          logger.success(`Added PDF source ${sourcesAdded}`, 'notebooklm');
-        }
-      } catch (error) {
-        logger.warn(`Failed to add PDF: ${url}`, 'notebooklm');
-        // Continue with other sources
-      }
+    // TODO: Add PDF sources (disabled for now - untested)
+    // PDFs are still extracted and saved in markdown
+    // Users can manually add PDFs to NotebookLM if needed
+    if (pdfUrls.size > 0) {
+      logger.info(`Found ${pdfUrls.size} PDF URLs (saved in markdown, not auto-uploaded)`, 'notebooklm');
     }
     
     if (sourcesAdded > 0) {
-      logger.success(`✅ Added ${sourcesAdded} additional sources (YouTube + PDFs)`, 'notebooklm');
+      logger.success(`✅ Added ${sourcesAdded} YouTube video source(s)`, 'notebooklm');
     }
     
     if (notebookExisted) {

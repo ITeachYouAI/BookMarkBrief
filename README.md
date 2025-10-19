@@ -14,15 +14,15 @@ npm start
 
 ## ✨ Features
 
-- ✅ **Incremental sync** - Only extracts NEW bookmarks (fast!)
-- ✅ **Twitter Lists support** - Extract tweets from any Twitter List
-- ✅ **YouTube auto-transcription** - Videos automatically added & transcribed in NotebookLM
-- ✅ **PDF auto-extraction** - PDF links added as sources
-- ✅ **Rich content extraction** - Images, threads, quoted tweets
+- ✅ **YouTube auto-transcription** ⭐ - Videos from tweets automatically transcribed in NotebookLM
+- ✅ **Incremental sync** - Only extracts NEW bookmarks (6 seconds!)
+- ✅ **Twitter Lists support** - Multi-select lists, 24-hour filter
 - ✅ **Smart duplicate detection** - Never uploads the same bookmark twice
+- ✅ **Rich content extraction** - Threads, quoted tweets, images, PDFs (URLs)
+- ✅ **t.co link expansion** - Follows Twitter shortened URLs to real destinations
 - ✅ **Automatic NotebookLM upload** - Hands-free integration
 - ✅ **Separate notebooks per list** - Organized by topic
-- ✅ **t.co link expansion** - Follows Twitter shortened URLs
+- ✅ **Clean minimal UI** - Focus on core actions
 - ✅ **Daily auto-sync** - Set it and forget it
 - ✅ **Local database** - All your bookmarks stored in SQLite
 
@@ -116,17 +116,23 @@ BrainBrief - Solana Influencers - 2025-10-18
 - URL
 - Timestamp
 
-### Embedded Content (Auto-Added to NotebookLM)
-- **YouTube Videos** - Extracted from tweets & added as sources (auto-transcribed!)
+### Embedded Content
+
+**Auto-Uploaded to NotebookLM:**
+- ✅ **YouTube Videos** - Fully automated!
   - Finds videos in Twitter cards
   - Expands t.co shortened links
   - Uploads each video as separate source
-  - NotebookLM transcribes full video
-- **PDF Links** - Extracted & added as sources (auto-processed!)
+  - NotebookLM auto-transcribes full video
+  - Searchable video content
+
+**Extracted (in markdown, not auto-uploaded):**
+- **PDF Links** - URLs saved for reference (manual add to NotebookLM)
+- **Google Docs** - URLs saved for reference (use Google Drive integration)
 - **Images** - Direct links to tweet media (excludes profile pics)
+- **Twitter Videos** - URLs extracted (file size limitations)
 - **Quoted Tweets** - Full original tweet context
 - **Threads** - Multi-tweet content preserved
-- **Twitter Videos** - URLs extracted (manual download if needed)
 
 ## 📁 File Structure
 
