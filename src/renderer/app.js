@@ -11,18 +11,14 @@ console.log('🎨 Renderer process loaded');
 const syncBookmarksBtn = document.getElementById('sync-bookmarks');
 const syncListsBtn = document.getElementById('sync-lists');
 const settingsBtn = document.getElementById('open-settings');
+const notebooklmBtn = document.getElementById('open-notebooklm');
 const viewLogsBtn = document.getElementById('view-logs');
-const exportBtn = document.getElementById('export-bookmarks');
-
-// Status elements
-const twitterStatus = document.getElementById('twitter-status');
-const notebooklmStatus = document.getElementById('notebooklm-status');
-const lastSync = document.getElementById('last-sync');
 
 // Stats elements
+const lastSyncText = document.getElementById('last-sync-text');
 const bookmarksCount = document.getElementById('bookmarks-count');
 const listsCount = document.getElementById('lists-count');
-const tweetsCount = document.getElementById('tweets-count');
+const youtubeCount = document.getElementById('youtube-count');
 
 // State
 let isSyncing = false;
@@ -42,30 +38,22 @@ async function loadStats() {
       // Update counts
       bookmarksCount.textContent = stats.total_bookmarks || 0;
       listsCount.textContent = stats.total_lists || 0;
-      tweetsCount.textContent = stats.total_bookmarks || 0;
+      youtubeCount.textContent = 0; // TODO: Track YouTube sources in DB
       
       // Update last sync time
       if (stats.last_sync) {
         const syncDate = new Date(stats.last_sync);
-        lastSync.textContent = formatTimestamp(syncDate);
+        const timeAgo = getTimeAgo(syncDate);
+        lastSyncText.textContent = `Last sync: ${timeAgo}`;
       } else {
-        lastSync.textContent = 'Never';
-      }
-      
-      // Update status indicators
-      if (stats.total_bookmarks > 0) {
-        twitterStatus.textContent = 'Connected';
-        twitterStatus.style.color = '#1DA1F2';
-      } else {
-        twitterStatus.textContent = 'Not connected';
-        twitterStatus.style.color = '#999';
+        lastSyncText.textContent = 'Last sync: Never';
       }
       
       console.log('✅ Stats loaded:', stats);
     } else {
       // Show detailed error
       console.error('❌ Failed to load stats:', result.error);
-      lastSync.textContent = 'Error';
+      lastSyncText.textContent = 'Last sync: Error';
       
       showNotification(
         'Database Error',
@@ -316,6 +304,9 @@ function formatTimestamp(date) {
   }
 }
 
+// Alias for consistency
+const getTimeAgo = formatTimestamp;
+
 /**
  * Listen for sync status updates from main process
  */
@@ -379,13 +370,13 @@ settingsBtn.addEventListener('click', () => {
 viewLogsBtn.addEventListener('click', (e) => {
   e.preventDefault();
   console.log('📋 View Logs clicked');
-  // TODO(v1.1): Open logs folder
-  alert('Logs viewer coming soon!\n\nYou will be able to:\n- View sync history\n- Debug errors\n- Export logs');
+  // TODO: Open logs folder
+  alert('Logs viewer coming soon!');
 });
 
-exportBtn.addEventListener('click', () => {
-  console.log('📤 Export clicked');
-  exportBookmarks();
+notebooklmBtn.addEventListener('click', () => {
+  console.log('🔗 Opening NotebookLM...');
+  require('electron').shell.openExternal('https://notebooklm.google.com');
 });
 
 /**

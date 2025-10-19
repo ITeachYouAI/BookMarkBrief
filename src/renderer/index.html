@@ -13,75 +13,55 @@
   <div class="container">
     <header>
       <h1>🧠 BrainBrief</h1>
-      <p class="subtitle">Sync Twitter bookmarks & lists to NotebookLM</p>
+      <p class="subtitle">Twitter → NotebookLM • Auto-Transcribe YouTube Videos</p>
     </header>
 
     <main>
-      <section class="status-card">
-        <h2>Status</h2>
-        <div class="status-item">
-          <span class="label">Twitter:</span>
-          <span class="value" id="twitter-status">Not connected</span>
-        </div>
-        <div class="status-item">
-          <span class="label">NotebookLM:</span>
-          <span class="value" id="notebooklm-status">Not connected</span>
-        </div>
-        <div class="status-item">
-          <span class="label">Last Sync:</span>
-          <span class="value" id="last-sync">Never</span>
-        </div>
-      </section>
-
-      <section class="actions">
-        <button class="btn btn-primary" id="sync-bookmarks">
+      <!-- Main Actions (Big & Prominent) -->
+      <section class="main-actions">
+        <button class="btn btn-large btn-primary" id="sync-bookmarks">
           🔖 Sync Bookmarks
         </button>
-        <button class="btn btn-primary" id="sync-lists">
+        <button class="btn btn-large btn-primary" id="sync-lists">
           📋 Sync Lists
         </button>
       </section>
 
-      <section class="actions">
-        <button class="btn btn-secondary" id="open-settings">
-          Settings
-        </button>
-        <button class="btn btn-export" id="export-bookmarks">
-          📤 Export File
-        </button>
-      </section>
-      <section class="info-card">
-        <h3>Quick Start</h3>
-        <ol>
-          <li>Click "Settings" to configure Twitter and NotebookLM access</li>
-          <li>Choose which Twitter lists to sync (optional)</li>
-          <li>Set your sync schedule (daily, weekly, manual)</li>
-          <li>Click "Sync Now" to run your first sync</li>
-        </ol>
+      <!-- Last Sync Info -->
+      <section class="last-sync-info">
+        <p id="last-sync-text">Last sync: Never</p>
+        <p class="hint">Click a button above to sync</p>
       </section>
 
-      <section class="stats">
-        <div class="stat">
+      <!-- Stats Grid -->
+      <section class="stats-grid">
+        <div class="stat-card">
           <div class="stat-number" id="bookmarks-count">0</div>
           <div class="stat-label">Bookmarks</div>
         </div>
-        <div class="stat">
+        <div class="stat-card">
           <div class="stat-number" id="lists-count">0</div>
           <div class="stat-label">Lists Synced</div>
         </div>
-        <div class="stat">
-          <div class="stat-number" id="tweets-count">0</div>
-          <div class="stat-label">Total Tweets</div>
+        <div class="stat-card">
+          <div class="stat-number" id="youtube-count">0</div>
+          <div class="stat-label">YouTube Videos</div>
         </div>
+      </section>
+
+      <!-- Secondary Actions -->
+      <section class="secondary-actions">
+        <button class="btn btn-secondary" id="open-settings">
+          ⚙️ Settings
+        </button>
+        <button class="btn btn-secondary" id="open-notebooklm">
+          🔗 Open NotebookLM
+        </button>
       </section>
     </main>
 
     <footer>
-      <p>
-        Version 1.0.0 | 
-        <a href="#" id="view-logs">View Logs</a> | 
-        <a href="https://github.com/yourusername/brainbrief" target="_blank">GitHub</a>
-      </p>
+      <p>v1.3.0 • <a href="#" id="view-logs">Logs</a> • Auto-Transcribes YouTube Videos ✨</p>
     </footer>
   </div>
 
