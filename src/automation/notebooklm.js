@@ -940,47 +940,54 @@ async function uploadURL(page, url, sourceType = 'youtube') {
   try {
     logger.info(`Adding ${sourceType} URL as source: ${url}`, 'notebooklm');
     
-    // Make sure any previous modal is closed
+    // STEP 1: Close any previous modals
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
     
-    // Click "+ Add" button to open modal
-    logger.info('Clicking "+ Add" to open modal...', 'notebooklm');
+    // STEP 2: Click "+ Add" button
+    logger.info('STEP 1: Clicking "+ Add" button...', 'notebooklm');
     const addButton = page.locator('[aria-label="Add source"]').first();
-    await addButton.click({ timeout: 5000 });
-    await page.waitForTimeout(3000);
+    await addButton.click({ timeout: 10000 });
+    logger.success('Clicked "+ Add"', 'notebooklm');
     
-    // Wait for Add Sources modal to appear AND buttons to be clickable
-    await page.waitForSelector('text=Add sources', { timeout: 5000 });
-    logger.success('Add sources modal opened', 'notebooklm');
+    // STEP 3: Wait for "Add sources" modal to appear
+    await page.waitForTimeout(2000);
+    await page.waitForSelector('text=Add sources', { timeout: 10000 });
+    logger.success('Modal opened', 'notebooklm');
     
-    // Wait for modal to fully render (buttons appear)
+    // STEP 4: Wait for buttons to be clickable
     await page.waitForTimeout(2000);
     
-    // Click the YouTube chip button (Material UI chip)
-    logger.info('Clicking YouTube chip button...', 'notebooklm');
+    // STEP 5: Click YouTube chip/button
+    logger.info('STEP 2: Clicking YouTube button...', 'notebooklm');
+    await page.locator('mat-chip:has-text("YouTube")').click({ timeout: 10000 });
+    logger.success('Clicked YouTube button', 'notebooklm');
     
-    await page.locator('mat-chip:has-text("YouTube")').click({ timeout: 5000 });
-    logger.success('Clicked "YouTube" chip', 'notebooklm');
+    // STEP 6: Wait for YouTube URL input screen to appear
+    logger.info('STEP 3: Waiting for URL input screen...', 'notebooklm');
+    await page.waitForTimeout(2000);
+    await page.waitForSelector('text=YouTube URL', { timeout: 10000 });
+    logger.success('YouTube URL screen loaded', 'notebooklm');
     
-    await page.waitForTimeout(1000);
-    
-    // Find URL input field and paste URL
-    logger.info('Looking for URL input field...', 'notebooklm');
-    
-    const urlInput = await page.locator('input').first();
-    await urlInput.fill(url, { timeout: 10000 });
-    logger.success(`Pasted URL: ${url}`, 'notebooklm');
-    
-    await page.waitForTimeout(1000);
-    
-    // Press Enter or click Insert button
-    logger.info('Submitting URL...', 'notebooklm');
-    await page.keyboard.press('Enter');
-    logger.success(`URL source submitted: ${url}`, 'notebooklm');
-    
-    // Wait for source to appear
+    // STEP 7: Wait and fill YouTube URL
+    logger.info('STEP 4: Filling YouTube URL...', 'notebooklm');
     await page.waitForTimeout(3000);
+    
+    // Just type the URL (focus should be on input already)
+    await page.keyboard.type(url);
+    logger.success(`Typed URL: ${url}`, 'notebooklm');
+    
+    // STEP 8: Submit (wait for validation, then press Enter)
+    logger.info('STEP 5: Waiting for URL validation...', 'notebooklm');
+    await page.waitForTimeout(3000); // Wait for NotebookLM to validate URL
+    
+    // Press Enter to submit (Insert button might be disabled during validation)
+    await page.keyboard.press('Enter');
+    logger.success('Pressed Enter to submit', 'notebooklm');
+    
+    // STEP 9: Wait for source to be added
+    await page.waitForTimeout(5000);
+    logger.success(`✅ YouTube source added: ${url}`, 'notebooklm');
     
     return {
       success: true,
@@ -989,7 +996,14 @@ async function uploadURL(page, url, sourceType = 'youtube') {
     };
     
   } catch (error) {
-    logger.error('Failed to upload URL', error, 'notebooklm');
+    logger.error('Failed to upload YouTube URL', error, 'notebooklm');
+    
+    // Take screenshot on failure
+    try {
+      await page.screenshot({ path: 'youtube-upload-error.png' });
+      logger.info('Saved error screenshot: youtube-upload-error.png', 'notebooklm');
+    } catch (e) {}
+    
     return {
       success: false,
       data: null,
