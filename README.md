@@ -16,10 +16,13 @@ npm start
 
 - ✅ **Incremental sync** - Only extracts NEW bookmarks (fast!)
 - ✅ **Twitter Lists support** - Extract tweets from any Twitter List
-- ✅ **Rich content extraction** - YouTube URLs, images, PDFs, quoted tweets
+- ✅ **YouTube auto-transcription** - Videos automatically added & transcribed in NotebookLM
+- ✅ **PDF auto-extraction** - PDF links added as sources
+- ✅ **Rich content extraction** - Images, threads, quoted tweets
 - ✅ **Smart duplicate detection** - Never uploads the same bookmark twice
 - ✅ **Automatic NotebookLM upload** - Hands-free integration
 - ✅ **Separate notebooks per list** - Organized by topic
+- ✅ **t.co link expansion** - Follows Twitter shortened URLs
 - ✅ **Daily auto-sync** - Set it and forget it
 - ✅ **Local database** - All your bookmarks stored in SQLite
 
@@ -113,13 +116,17 @@ BrainBrief - Solana Influencers - 2025-10-18
 - URL
 - Timestamp
 
-### Embedded Content
-- **YouTube URLs** - For NotebookLM video transcription
+### Embedded Content (Auto-Added to NotebookLM)
+- **YouTube Videos** - Extracted from tweets & added as sources (auto-transcribed!)
+  - Finds videos in Twitter cards
+  - Expands t.co shortened links
+  - Uploads each video as separate source
+  - NotebookLM transcribes full video
+- **PDF Links** - Extracted & added as sources (auto-processed!)
 - **Images** - Direct links to tweet media (excludes profile pics)
-- **Videos** - Video URLs
-- **Quoted Tweets** - Original tweet author and text
-- **PDFs** - Document links
-- **Threads** - Multi-tweet content
+- **Quoted Tweets** - Full original tweet context
+- **Threads** - Multi-tweet content preserved
+- **Twitter Videos** - URLs extracted (manual download if needed)
 
 ## 📁 File Structure
 
