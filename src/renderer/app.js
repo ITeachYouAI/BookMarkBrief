@@ -64,7 +64,7 @@ async function loadStats() {
     }
   } catch (error) {
     console.error('❌ Error loading stats:', error);
-    lastSync.textContent = 'Error';
+    lastSyncText.textContent = 'Last sync: Error';
     
     showNotification(
       'System Error',
@@ -242,7 +242,7 @@ function showNotification(title, message, type = 'info', options = {}) {
   
   // Update last sync if success
   if (type === 'success' && title.includes('Success')) {
-    lastSync.textContent = 'Just now';
+    lastSyncText.textContent = 'Last sync: Just now';
   }
 }
 
