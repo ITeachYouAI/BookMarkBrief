@@ -130,9 +130,14 @@ async function _waitForLogin(page) {
       if (nowLoggedIn) {
         logger.success('Successfully logged in to Twitter', 'twitter');
         
-        // Wait 5 seconds to ensure cookies/session are fully saved to disk
-        logger.info('Waiting for session to save...', 'twitter');
-        await page.waitForTimeout(5000);
+        // Navigate to bookmarks to trigger cookie save
+        logger.info('Navigating to bookmarks to save session...', 'twitter');
+        await page.goto(TWITTER_BOOKMARKS_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await page.waitForTimeout(3000);
+        
+        // Wait additional time to ensure cookies are written to disk
+        logger.info('Waiting for session to fully persist...', 'twitter');
+        await page.waitForTimeout(3000);
         
         return {
           success: true,
