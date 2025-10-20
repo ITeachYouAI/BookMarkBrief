@@ -677,8 +677,16 @@ resetDatabaseBtn.addEventListener('click', () => {
 /**
  * Initialize app on load
  */
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   console.log('✅ DOM loaded, initializing app...');
+  
+  // Check if first run - redirect to onboarding
+  const firstRunResult = await ipcRenderer.invoke('is-first-run');
+  if (firstRunResult.success && firstRunResult.data.isFirstRun) {
+    console.log('🎯 First run detected, redirecting to onboarding...');
+    window.location.href = 'onboarding.html';
+    return;
+  }
   
   // Load initial data
   loadStats();

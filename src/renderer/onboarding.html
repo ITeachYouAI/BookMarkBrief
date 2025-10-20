@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to BrainBrief</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .onboarding-container {
+      max-width: 600px;
+      margin: 60px auto;
+      padding: 40px;
+    }
+    
+    .step-card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    
+    .step-card h1 {
+      font-size: 2rem;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    .step-card p {
+      color: #666;
+      font-size: 1.1rem;
+      line-height: 1.6;
+      margin: 20px 0;
+    }
+    
+    .step-number {
+      display: inline-block;
+      background: #1DA1F2;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      line-height: 40px;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      margin: 20px 0;
+      font-weight: 500;
+    }
+    
+    .status-pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .status-success {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .big-button {
+      padding: 16px 48px;
+      font-size: 1.2rem;
+      margin: 20px 0;
+    }
+    
+    .feature-list {
+      text-align: left;
+      margin: 30px 0;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    .feature-list li {
+      margin: 12px 0;
+      color: #555;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <div class="onboarding-container">
+    <!-- Step 0: Welcome -->
+    <div class="step-card" id="step-welcome">
+      <h1>🧠 Welcome to BrainBrief!</h1>
+      <p>Auto-sync your Twitter bookmarks to NotebookLM with YouTube video transcription</p>
+      
+      <div class="feature-list">
+        <ul>
+          <li>✨ Auto-transcribe YouTube videos from tweets</li>
+          <li>🔖 Sync Twitter bookmarks automatically</li>
+          <li>📋 Organize by Twitter Lists</li>
+          <li>🔍 Search all your content in NotebookLM</li>
+          <li>⚡ Incremental sync (only new bookmarks)</li>
+        </ul>
+      </div>
+      
+      <button class="btn btn-primary big-button" id="start-setup">
+        Get Started →
+      </button>
+    </div>
+
+    <!-- Step 1: Connect Twitter -->
+    <div class="step-card" id="step-twitter" style="display: none;">
+      <div class="step-number">1</div>
+      <h1>Connect Twitter</h1>
+      <p>We need access to your Twitter bookmarks to sync them to NotebookLM</p>
+      
+      <div class="status-indicator status-pending" id="twitter-status">
+        ⭕ Not Connected
+      </div>
+      
+      <p style="font-size: 0.9rem; color: #999;">
+        Click the button below. A browser will open asking you to log in to Twitter.
+      </p>
+      
+      <button class="btn btn-primary big-button" id="connect-twitter">
+        Connect Twitter
+      </button>
+      
+      <br><br>
+      <button class="btn btn-link" id="skip-twitter">Skip for now</button>
+    </div>
+
+    <!-- Step 2: Connect NotebookLM -->
+    <div class="step-card" id="step-notebooklm" style="display: none;">
+      <div class="step-number">2</div>
+      <h1>Connect NotebookLM</h1>
+      <p>Log in to Google to access NotebookLM where your bookmarks will be synced</p>
+      
+      <div class="status-indicator status-pending" id="notebooklm-status">
+        ⭕ Not Connected
+      </div>
+      
+      <p style="font-size: 0.9rem; color: #999;">
+        Click the button below. A browser will open asking you to log in to Google.
+      </p>
+      
+      <button class="btn btn-primary big-button" id="connect-notebooklm">
+        Connect NotebookLM
+      </button>
+      
+      <br><br>
+      <button class="btn btn-link" id="skip-notebooklm">Skip for now</button>
+    </div>
+
+    <!-- Step 3: Complete -->
+    <div class="step-card" id="step-complete" style="display: none;">
+      <h1>✅ All Set!</h1>
+      <p>Your accounts are connected and ready to sync</p>
+      
+      <div style="margin: 30px 0;">
+        <div class="status-indicator status-success">
+          ✅ Twitter: Connected
+        </div>
+        <div class="status-indicator status-success" id="notebooklm-email-status">
+          ✅ NotebookLM: Connected
+        </div>
+      </div>
+      
+      <p style="font-size: 1rem; color: #666;">
+        Ready to sync your bookmarks! Click below to start.
+      </p>
+      
+      <button class="btn btn-primary big-button" id="finish-onboarding">
+        Start Using BrainBrief →
+      </button>
+    </div>
+  </div>
+
+  <script src="onboarding.js"></script>
+</body>
+</html>
+

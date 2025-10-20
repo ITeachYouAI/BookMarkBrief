@@ -484,6 +484,93 @@ ipcMain.handle('reset-database', async () => {
   }
 });
 
+// Check if first run (for onboarding)
+ipcMain.handle('is-first-run', async () => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  const dbPath = path.join(__dirname, '../../data/brainbrief.db');
+  const browserDataPath = path.join(__dirname, '../../browser-data');
+  const onboardingCompletePath = path.join(__dirname, '../../data/.onboarding-complete');
+  
+  // First run if no database AND no onboarding-complete marker
+  const isFirstRun = !fs.existsSync(onboardingCompletePath);
+  
+  return {
+    success: true,
+    data: { isFirstRun },
+    error: null
+  };
+});
+
+// Mark onboarding as complete
+ipcMain.handle('complete-onboarding', async () => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  const dataDir = path.join(__dirname, '../../data');
+  const markerFile = path.join(dataDir, '.onboarding-complete');
+  
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  
+  fs.writeFileSync(markerFile, new Date().toISOString());
+  logger.info('Onboarding marked as complete', 'main');
+  
+  return { success: true, data: null, error: null };
+});
+
+// Test Twitter connection
+ipcMain.handle('test-twitter-connection', async () => {
+  try {
+    const twitter = require('../automation/twitter');
+    
+    // Try to extract 1 bookmark (will prompt login if needed)
+    const result = await twitter.testExtraction();
+    
+    return result;
+  } catch (error) {
+    return { success: false, data: null, error: error.message };
+  }
+});
+
+// Test NotebookLM connection
+ipcMain.handle('test-notebooklm-connection', async () => {
+  try {
+    const accountManager = require('../automation/account-manager');
+    
+    // Detect if logged in to NotebookLM
+    const result = await accountManager.detectGoogleAccount();
+    
+    return result;
+  } catch (error) {
+    return { success: false, data: null, error: error.message };
+  }
+});
+
+// Check if Twitter connected
+ipcMain.handle('check-twitter-connected', async () => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  const browserDataPath = path.join(__dirname, '../../browser-data');
+  const connected = fs.existsSync(browserDataPath);
+  
+  return { success: true, data: { connected }, error: null };
+});
+
+// Check if NotebookLM connected
+ipcMain.handle('check-notebooklm-connected', async () => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  const browserDataPath = path.join(__dirname, '../../browser-data');
+  const connected = fs.existsSync(browserDataPath);
+  
+  return { success: true, data: { connected }, error: null };
+});
+
 // Get lists config
 ipcMain.handle('get-lists-config', async () => {
   try {
