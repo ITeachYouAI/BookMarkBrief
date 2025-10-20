@@ -129,6 +129,11 @@ async function _waitForLogin(page) {
       const nowLoggedIn = await _isLoggedIn(page);
       if (nowLoggedIn) {
         logger.success('Successfully logged in to Twitter', 'twitter');
+        
+        // Wait 5 seconds to ensure cookies/session are fully saved to disk
+        logger.info('Waiting for session to save...', 'twitter');
+        await page.waitForTimeout(5000);
+        
         return {
           success: true,
           data: null,

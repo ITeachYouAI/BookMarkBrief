@@ -698,5 +698,5 @@ window.addEventListener('DOMContentLoaded', async () => {
   setInterval(loadLists, 60000);
   setInterval(loadGoogleAccount, 120000); // Refresh account every 2 minutes
 
-  console.log('✅ Renderer ready');
+console.log('✅ Renderer ready');
 });

@@ -46,28 +46,33 @@ startSetupBtn.addEventListener('click', () => {
 connectTwitterBtn.addEventListener('click', async () => {
   try {
     connectTwitterBtn.disabled = true;
-    connectTwitterBtn.textContent = 'Opening browser...';
+    connectTwitterBtn.textContent = 'Opening browser - Log in to Twitter...';
+    
+    twitterStatus.textContent = 'Browser opening... log in when prompted';
     
     // Trigger a test extraction (will prompt login if needed)
     const result = await ipcRenderer.invoke('test-twitter-connection');
     
     if (result.success) {
       twitterStatus.className = 'status-indicator status-success';
-      twitterStatus.textContent = '✅ Connected';
+      twitterStatus.textContent = '✅ Connected to Twitter';
+      connectTwitterBtn.textContent = 'Connected!';
       
-      // Auto-advance after 2 seconds
-      setTimeout(() => {
-        showStep(stepNotebookLM);
-      }, 2000);
+      // Wait 3 seconds to ensure session fully saves
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Auto-advance
+      showStep(stepNotebookLM);
     } else {
       twitterStatus.className = 'status-indicator status-pending';
-      twitterStatus.textContent = '❌ Connection failed';
+      twitterStatus.textContent = '❌ Connection failed - try again';
       connectTwitterBtn.disabled = false;
       connectTwitterBtn.textContent = 'Try Again';
     }
     
   } catch (error) {
     console.error('Twitter connection error:', error);
+    twitterStatus.textContent = `❌ Error: ${error.message}`;
     connectTwitterBtn.disabled = false;
     connectTwitterBtn.textContent = 'Try Again';
   }
