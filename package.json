@@ -1,7 +1,7 @@
 {
   "name": "brainbrief",
-  "version": "1.0.0",
-  "description": "Sync Twitter bookmarks and lists to NotebookLM",
+  "version": "1.3.0",
+  "description": "Auto-sync Twitter bookmarks to NotebookLM with YouTube transcription",
   "main": "src/main/index.js",
   "scripts": {
     "start": "electron . --show",
@@ -10,6 +10,9 @@
     "sync:lists": "node run-sync-lists.js",
     "discover:lists": "node click-and-extract-lists.js",
     "fix": "./fix-lock.sh && npm run sync",
+    "build": "electron-builder build --mac",
+    "build:all": "electron-builder build --mac --win --linux",
+    "dist": "electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -17,7 +20,9 @@
     "notebooklm",
     "automation",
     "bookmarks",
-    "ai"
+    "ai",
+    "youtube",
+    "transcription"
   ],
   "author": "Timothy Joo <timothy@iteachyouai.com>",
   "license": "MIT",
@@ -26,5 +31,39 @@
     "node-schedule": "^2.1.1",
     "playwright": "^1.45.3",
     "sql.js": "^1.13.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.iteachyouai.brainbrief",
+    "productName": "BrainBrief",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "assets/icon.png",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "assets/icon.png"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
+    },
+    "files": [
+      "src/**/*",
+      "data/**/*",
+      "node_modules/**/*",
+      "package.json",
+      "run-sync.js",
+      "run-sync-lists.js",
+      "click-and-extract-lists.js",
+      "fix-lock.sh"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    }
   }
 }
