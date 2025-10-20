@@ -466,6 +466,21 @@ ipcMain.handle('get-google-account', async () => {
   }
 });
 
+// Get active notebook name
+ipcMain.handle('get-active-notebook', async () => {
+  try {
+    const notebookTracker = require('../db/notebook-tracker');
+    
+    // Get active notebook from database
+    const result = await notebookTracker.getActiveNotebook();
+    
+    return result;
+  } catch (error) {
+    logger.error('Failed to get active notebook', error, 'main');
+    return { success: false, data: null, error: error.message };
+  }
+});
+
 // Switch Google account (logout)
 ipcMain.handle('switch-account', async () => {
   try {

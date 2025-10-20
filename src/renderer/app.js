@@ -23,6 +23,7 @@ const resetDatabaseBtn = document.getElementById('reset-database-btn');
 const bookmarksLastSync = document.getElementById('bookmarks-last-sync');
 const bookmarksCountStat = document.getElementById('bookmarks-count-stat');
 const bookmarksYoutubeStat = document.getElementById('bookmarks-youtube-stat');
+const bookmarksNotebookName = document.getElementById('bookmarks-notebook-name');
 const listsSummary = document.getElementById('lists-summary');
 
 // State
@@ -59,6 +60,9 @@ async function loadStats() {
         googleEmailSpan.style.color = '#999';
       }
       
+      // Load active notebook name
+      loadActiveNotebook();
+      
       console.log('✅ Stats loaded:', stats);
     } else {
       // Show detailed error
@@ -82,6 +86,26 @@ async function loadStats() {
       'error',
       { autoDismiss: false }
     );
+  }
+}
+
+/**
+ * Load active notebook name
+ */
+async function loadActiveNotebook() {
+  try {
+    const result = await ipcRenderer.invoke('get-active-notebook');
+    
+    if (result.success && result.data && result.data.name) {
+      bookmarksNotebookName.textContent = result.data.name;
+      bookmarksNotebookName.style.color = '#1DA1F2';
+    } else {
+      bookmarksNotebookName.textContent = 'Not created yet';
+      bookmarksNotebookName.style.color = '#999';
+    }
+  } catch (error) {
+    console.error('Failed to load notebook name:', error);
+    bookmarksNotebookName.textContent = 'Unknown';
   }
 }
 
