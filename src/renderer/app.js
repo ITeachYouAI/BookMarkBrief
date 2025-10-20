@@ -64,7 +64,7 @@ async function loadStats() {
     }
   } catch (error) {
     console.error('❌ Error loading stats:', error);
-    lastSyncText.textContent = 'Last sync: Error';
+    bookmarksLastSync.textContent = 'Error';
     
     showNotification(
       'System Error',
@@ -427,9 +427,11 @@ function showNotification(title, message, type = 'info', options = {}) {
     }, duration);
   }
   
-  // Update last sync if success
-  if (type === 'success' && title.includes('Success')) {
-    lastSyncText.textContent = 'Last sync: Just now';
+  // Update last sync if success (for bookmarks)
+  if (type === 'success' && (title.includes('Synced') || title.includes('Success'))) {
+    bookmarksLastSync.textContent = 'Just now';
+    loadStats(); // Refresh stats
+    loadLists(); // Refresh lists to show updated sync times
   }
 }
 
@@ -556,5 +558,5 @@ window.addEventListener('DOMContentLoaded', () => {
   setInterval(loadStats, 30000);
   setInterval(loadLists, 60000);
 
-  console.log('✅ Renderer ready');
+console.log('✅ Renderer ready');
 });

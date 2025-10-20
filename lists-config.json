@@ -4,21 +4,21 @@
       "name": "Career",
       "url": "https://x.com/i/lists/1441289999119368195",
       "listId": "1441289999119368195",
-      "enabled": true,
+      "enabled": false,
       "maxTweets": 50
     },
     {
       "name": "Thread writers - Twitter",
       "url": "https://x.com/i/lists/1488661860056387585",
       "listId": "1488661860056387585",
-      "enabled": true,
+      "enabled": false,
       "maxTweets": 50
     },
     {
       "name": "Based",
       "url": "https://x.com/i/lists/1585336376249106432",
       "listId": "1585336376249106432",
-      "enabled": true,
+      "enabled": false,
       "maxTweets": 50
     },
     {
@@ -32,28 +32,28 @@
       "name": "AI Memes Info",
       "url": "https://x.com/i/lists/1856857936880165305",
       "listId": "1856857936880165305",
-      "enabled": true,
+      "enabled": false,
       "maxTweets": 50
     },
     {
       "name": "Gauntlet AI Cohort 1",
       "url": "https://x.com/i/lists/1876334018150678826",
       "listId": "1876334018150678826",
-      "enabled": true,
+      "enabled": false,
       "maxTweets": 50
     },
     {
       "name": "Gauntlet AI cohort 2",
       "url": "https://x.com/i/lists/1932789814568329514",
       "listId": "1932789814568329514",
-      "enabled": true,
+      "enabled": false,
       "maxTweets": 50
     },
     {
       "name": "Solana Influencers",
       "url": "https://x.com/i/lists/1777037601578287430",
       "listId": "1777037601578287430",
-      "enabled": true,
+      "enabled": false,
       "maxTweets": 50
     },
     {
@@ -67,7 +67,7 @@
       "name": "Superbuilders",
       "url": "https://x.com/i/lists/1975969552132608103",
       "listId": "1975969552132608103",
-      "enabled": true,
+      "enabled": false,
       "maxTweets": 50
     },
     {
