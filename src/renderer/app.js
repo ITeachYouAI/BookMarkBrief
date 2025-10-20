@@ -9,16 +9,17 @@ console.log('🎨 Renderer process loaded');
 
 // DOM elements
 const syncBookmarksBtn = document.getElementById('sync-bookmarks');
-const syncListsBtn = document.getElementById('sync-lists');
-const settingsBtn = document.getElementById('open-settings');
-const notebooklmBtn = document.getElementById('open-notebooklm');
+const openBookmarksNotebookBtn = document.getElementById('open-bookmarks-notebook');
+const discoverListsBtn = document.getElementById('discover-lists-btn');
+const notebooklmHomeBtn = document.getElementById('open-notebooklm-home');
 const viewLogsBtn = document.getElementById('view-logs');
+const listsContainer = document.getElementById('lists-container');
 
 // Stats elements
-const lastSyncText = document.getElementById('last-sync-text');
-const bookmarksCount = document.getElementById('bookmarks-count');
-const listsCount = document.getElementById('lists-count');
-const youtubeCount = document.getElementById('youtube-count');
+const bookmarksLastSync = document.getElementById('bookmarks-last-sync');
+const bookmarksCountStat = document.getElementById('bookmarks-count-stat');
+const bookmarksYoutubeStat = document.getElementById('bookmarks-youtube-stat');
+const listsSummary = document.getElementById('lists-summary');
 
 // State
 let isSyncing = false;
@@ -35,25 +36,24 @@ async function loadStats() {
     if (result.success) {
       const stats = result.data;
       
-      // Update counts
-      bookmarksCount.textContent = stats.total_bookmarks || 0;
-      listsCount.textContent = stats.total_lists || 0;
-      youtubeCount.textContent = 0; // TODO: Track YouTube sources in DB
+      // Update bookmarks card
+      bookmarksCountStat.textContent = stats.total_bookmarks || 0;
+      bookmarksYoutubeStat.textContent = 0; // TODO: Track YouTube sources in DB
       
       // Update last sync time
       if (stats.last_sync) {
         const syncDate = new Date(stats.last_sync);
         const timeAgo = getTimeAgo(syncDate);
-        lastSyncText.textContent = `Last sync: ${timeAgo}`;
+        bookmarksLastSync.textContent = timeAgo;
       } else {
-        lastSyncText.textContent = 'Last sync: Never';
+        bookmarksLastSync.textContent = 'Never synced';
       }
       
       console.log('✅ Stats loaded:', stats);
     } else {
       // Show detailed error
       console.error('❌ Failed to load stats:', result.error);
-      lastSyncText.textContent = 'Last sync: Error';
+      bookmarksLastSync.textContent = 'Error';
       
       showNotification(
         'Database Error',
@@ -72,6 +72,89 @@ async function loadStats() {
       'error',
       { autoDismiss: false }
     );
+  }
+}
+
+/**
+ * Load and display lists
+ */
+async function loadLists() {
+  console.log('📋 Loading lists...');
+  
+  try {
+    const result = await ipcRenderer.invoke('get-lists-config');
+    
+    if (!result.success || !result.data || result.data.lists.length === 0) {
+      // No lists - show empty state
+      listsContainer.innerHTML = `
+        <div class="empty-state">
+          <p>No lists configured</p>
+          <button class="btn btn-primary" id="discover-lists-btn">
+            🔍 Discover Your Lists
+          </button>
+        </div>
+      `;
+      
+      // Wire up discover button
+      document.getElementById('discover-lists-btn').addEventListener('click', discoverLists);
+      
+      listsSummary.textContent = '0 of 0 enabled';
+      return;
+    }
+    
+    const lists = result.data.lists;
+    const enabledCount = lists.filter(l => l.enabled).length;
+    
+    // Update summary
+    listsSummary.textContent = `${enabledCount} of ${lists.length} enabled`;
+    
+    // Render list cards
+    listsContainer.innerHTML = lists.map((list, index) => `
+      <div class="list-card ${list.enabled ? '' : 'disabled'}" data-list-id="${list.listId}">
+        <div class="list-card-header">
+          <div class="list-info">
+            <h3>${list.name}</h3>
+            <div class="list-meta">${list.memberCount || 'Unknown members'} • ${list.daysBack || 1} day filter</div>
+          </div>
+          <div class="list-status">
+            <div class="list-last-sync">Last: ${list.lastSynced || 'Never'}</div>
+          </div>
+        </div>
+        <div class="list-card-actions">
+          ${list.enabled ? `
+            <button class="btn btn-primary btn-sync-list" data-index="${index}">
+              🔄 Sync
+            </button>
+            <button class="btn btn-secondary btn-open-list" data-list-name="${list.name}">
+              🔗 Open
+            </button>
+            <button class="btn btn-disable btn-toggle-list" data-index="${index}">
+              ❌ Disable
+            </button>
+          ` : `
+            <button class="btn btn-enable btn-toggle-list" data-index="${index}">
+              ✅ Enable
+            </button>
+          `}
+        </div>
+      </div>
+    `).join('');
+    
+    // Wire up all the buttons
+    document.querySelectorAll('.btn-sync-list').forEach(btn => {
+      btn.addEventListener('click', () => syncSingleList(parseInt(btn.dataset.index)));
+    });
+    
+    document.querySelectorAll('.btn-open-list').forEach(btn => {
+      btn.addEventListener('click', () => openListNotebook(btn.dataset.listName));
+    });
+    
+    document.querySelectorAll('.btn-toggle-list').forEach(btn => {
+      btn.addEventListener('click', () => toggleList(parseInt(btn.dataset.index)));
+    });
+    
+  } catch (error) {
+    console.error('Failed to load lists:', error);
   }
 }
 
@@ -117,6 +200,110 @@ async function syncBookmarks() {
     isSyncing = false;
     syncBookmarksBtn.disabled = false;
     syncBookmarksBtn.textContent = '🔖 Sync Bookmarks';
+  }
+}
+
+/**
+ * Sync a single list
+ */
+async function syncSingleList(listIndex) {
+  console.log(`🔄 Syncing list ${listIndex}...`);
+  
+  try {
+    // Get list config
+    const configResult = await ipcRenderer.invoke('get-lists-config');
+    if (!configResult.success) {
+      showNotification('Error', 'Failed to load list configuration', 'error');
+      return;
+    }
+    
+    const list = configResult.data.lists[listIndex];
+    if (!list) {
+      showNotification('Error', 'List not found', 'error');
+      return;
+    }
+    
+    showNotification('Syncing List', `Syncing "${list.name}"...`, 'info');
+    
+    // Trigger single list sync
+    const result = await ipcRenderer.invoke('sync-single-list', { listIndex });
+    
+    if (result.success) {
+      showNotification('Success', `Synced "${list.name}"!`, 'success');
+      loadLists(); // Refresh to show updated sync time
+    } else {
+      showNotification('Error', result.error, 'error');
+    }
+    
+  } catch (error) {
+    console.error('Sync list error:', error);
+    showNotification('Error', error.message, 'error');
+  }
+}
+
+/**
+ * Open list notebook in NotebookLM
+ */
+function openListNotebook(listName) {
+  const today = new Date().toISOString().split('T')[0];
+  const notebookName = `BrainBrief - ${listName} - ${today}`;
+  console.log(`🔗 Opening notebook: ${notebookName}`);
+  
+  // Open NotebookLM (notebook will be there if synced)
+  require('electron').shell.openExternal('https://notebooklm.google.com');
+  
+  showNotification('Opening NotebookLM', `Look for: "${notebookName}"`, 'info');
+}
+
+/**
+ * Toggle list enabled/disabled
+ */
+async function toggleList(listIndex) {
+  console.log(`Toggle list ${listIndex}`);
+  
+  try {
+    // Get current config
+    const configResult = await ipcRenderer.invoke('get-lists-config');
+    if (!configResult.success) return;
+    
+    const lists = configResult.data.lists;
+    lists[listIndex].enabled = !lists[listIndex].enabled;
+    
+    // Save updated config
+    await ipcRenderer.invoke('save-lists-config', { lists });
+    
+    // Reload lists to show updated state
+    loadLists();
+    
+    const status = lists[listIndex].enabled ? 'enabled' : 'disabled';
+    showNotification('List Updated', `"${lists[listIndex].name}" ${status}`, 'success');
+    
+  } catch (error) {
+    console.error('Toggle list error:', error);
+    showNotification('Error', error.message, 'error');
+  }
+}
+
+/**
+ * Discover lists
+ */
+async function discoverLists() {
+  console.log('🔍 Discovering lists...');
+  
+  showNotification('Discovering Lists', 'Browser will open...', 'info');
+  
+  try {
+    const result = await ipcRenderer.invoke('discover-lists');
+    
+    if (result.success) {
+      showNotification('Success', `Found ${result.data.count} lists!`, 'success');
+      loadLists(); // Reload to show discovered lists
+    } else {
+      showNotification('Error', result.error, 'error');
+    }
+  } catch (error) {
+    console.error('Discovery error:', error);
+    showNotification('Error', error.message, 'error');
   }
 }
 
@@ -338,43 +525,19 @@ syncBookmarksBtn.addEventListener('click', () => {
   syncBookmarks();
 });
 
-syncListsBtn.addEventListener('click', async () => {
-  console.log('📋 Sync Lists clicked');
-  
-  try {
-    syncListsBtn.disabled = true;
-    syncListsBtn.textContent = 'Syncing Lists...';
-    
-    const result = await ipcRenderer.invoke('sync-lists');
-    
-    if (result.success) {
-      showNotification('Lists Synced!', `${result.data.synced}/${result.data.total} lists uploaded`, 'success');
-      loadStats();
-    } else {
-      showNotification('Sync Failed', result.error, 'error');
-    }
-  } catch (error) {
-    console.error('❌ Sync Lists error:', error);
-    showNotification('Error', error.message, 'error');
-  } finally {
-    syncListsBtn.disabled = false;
-    syncListsBtn.textContent = '📋 Sync Lists';
-  }
-});
-
-settingsBtn.addEventListener('click', () => {
-  console.log('⚙️  Settings clicked');
-  window.location.href = 'settings.html';
+openBookmarksNotebookBtn.addEventListener('click', () => {
+  console.log('🔗 Opening Bookmarks Notebook...');
+  require('electron').shell.openExternal('https://notebooklm.google.com');
+  // TODO: Deep link to specific notebook if possible
 });
 
 viewLogsBtn.addEventListener('click', (e) => {
   e.preventDefault();
   console.log('📋 View Logs clicked');
-  // TODO: Open logs folder
   alert('Logs viewer coming soon!');
 });
 
-notebooklmBtn.addEventListener('click', () => {
+notebooklmHomeBtn.addEventListener('click', () => {
   console.log('🔗 Opening NotebookLM...');
   require('electron').shell.openExternal('https://notebooklm.google.com');
 });
@@ -385,11 +548,13 @@ notebooklmBtn.addEventListener('click', () => {
 window.addEventListener('DOMContentLoaded', () => {
   console.log('✅ DOM loaded, initializing app...');
   
-  // Load initial stats
+  // Load initial data
   loadStats();
+  loadLists();
   
-  // Refresh stats every 30 seconds
+  // Refresh periodically
   setInterval(loadStats, 30000);
-  
+  setInterval(loadLists, 60000);
+
   console.log('✅ Renderer ready');
 });

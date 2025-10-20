@@ -27,12 +27,12 @@
   "author": "Timothy Joo <timothy@iteachyouai.com>",
   "license": "MIT",
   "dependencies": {
-    "electron": "^27.3.11",
     "node-schedule": "^2.1.1",
     "playwright": "^1.45.3",
     "sql.js": "^1.13.0"
   },
   "devDependencies": {
+    "electron": "^27.3.11",
     "electron-builder": "^24.13.3"
   },
   "build": {

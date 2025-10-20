@@ -17,46 +17,48 @@
     </header>
 
     <main>
-      <!-- Main Actions (Big & Prominent) -->
-      <section class="main-actions">
-        <button class="btn btn-large btn-primary" id="sync-bookmarks">
-          🔖 Sync Bookmarks
-        </button>
-        <button class="btn btn-large btn-primary" id="sync-lists">
-          📋 Sync Lists
-        </button>
-      </section>
-
-      <!-- Last Sync Info -->
-      <section class="last-sync-info">
-        <p id="last-sync-text">Last sync: Never</p>
-        <p class="hint">Click a button above to sync</p>
-      </section>
-
-      <!-- Stats Grid -->
-      <section class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-number" id="bookmarks-count">0</div>
-          <div class="stat-label">Bookmarks</div>
+      <!-- Bookmarks Notebook Card -->
+      <section class="notebook-card">
+        <div class="card-header">
+          <h2>🔖 Twitter Bookmarks</h2>
+          <span class="last-sync" id="bookmarks-last-sync">Never synced</span>
         </div>
-        <div class="stat-card">
-          <div class="stat-number" id="lists-count">0</div>
-          <div class="stat-label">Lists Synced</div>
+        <div class="card-stats">
+          <span id="bookmarks-count-stat">0</span> bookmarks •
+          <span id="bookmarks-youtube-stat">0</span> YouTube videos transcribed
         </div>
-        <div class="stat-card">
-          <div class="stat-number" id="youtube-count">0</div>
-          <div class="stat-label">YouTube Videos</div>
+        <div class="card-actions">
+          <button class="btn btn-primary" id="sync-bookmarks">
+            🔄 Sync Bookmarks
+          </button>
+          <button class="btn btn-secondary" id="open-bookmarks-notebook">
+            🔗 Open Notebook
+          </button>
         </div>
       </section>
 
-      <!-- Secondary Actions -->
-      <section class="secondary-actions">
-        <button class="btn btn-secondary" id="open-settings">
-          ⚙️ Settings
-        </button>
-        <button class="btn btn-secondary" id="open-notebooklm">
-          🔗 Open NotebookLM
-        </button>
+      <!-- Lists Section -->
+      <section class="lists-section">
+        <div class="section-header">
+          <h2>📋 Twitter Lists</h2>
+          <span class="lists-summary" id="lists-summary">0 of 0 enabled</span>
+        </div>
+        
+        <!-- Lists will be dynamically loaded here -->
+        <div id="lists-container">
+          <div class="empty-state">
+            <p>No lists configured</p>
+            <button class="btn btn-primary" id="discover-lists-btn">
+              🔍 Discover Your Lists
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer Actions -->
+      <section class="footer-actions">
+        <button class="btn btn-link" id="view-logs">📖 View Logs</button>
+        <button class="btn btn-link" id="open-notebooklm-home">🔗 NotebookLM Home</button>
       </section>
     </main>
 

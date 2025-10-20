@@ -515,7 +515,69 @@ ipcMain.handle('discover-lists', async () => {
   }
 });
 
-// Sync lists
+// Sync single list
+ipcMain.handle('sync-single-list', async (event, { listIndex }) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const { extractListTweets } = require('../automation/twitter');
+    const { uploadListTweets } = require('../automation/notebooklm');
+    
+    logger.info(`UI requested sync for list index ${listIndex}`, 'main');
+    
+    // Load config
+    const configPath = path.join(__dirname, '../../lists-config.json');
+    if (!fs.existsSync(configPath)) {
+      return { success: false, data: null, error: 'No lists config found.' };
+    }
+    
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    const list = config.lists[listIndex];
+    
+    if (!list) {
+      return { success: false, data: null, error: 'List not found.' };
+    }
+    
+    logger.info(`Syncing list: "${list.name}"`, 'main');
+    
+    // Extract tweets
+    const extractResult = await extractListTweets(list);
+    if (!extractResult.success) {
+      return { success: false, data: null, error: extractResult.error };
+    }
+    
+    if (extractResult.data.tweets.length === 0) {
+      return { success: false, data: null, error: 'No tweets found in list.' };
+    }
+    
+    // Upload to NotebookLM
+    const uploadResult = await uploadListTweets(extractResult.data.tweets, {
+      name: list.name,
+      listId: list.listId,
+      url: list.url
+    });
+    
+    if (!uploadResult.success) {
+      return { success: false, data: null, error: uploadResult.error };
+    }
+    
+    // Update last synced time in config
+    config.lists[listIndex].lastSynced = new Date().toISOString();
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    
+    return {
+      success: true,
+      data: { count: extractResult.data.tweets.length },
+      error: null
+    };
+    
+  } catch (error) {
+    logger.error('Single list sync failed', error, 'main');
+    return { success: false, data: null, error: error.message };
+  }
+});
+
+// Sync all enabled lists
 ipcMain.handle('sync-lists', async () => {
   try {
     const fs = require('fs');
