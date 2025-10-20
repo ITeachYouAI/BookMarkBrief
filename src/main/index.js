@@ -262,9 +262,18 @@ app.on('activate', () => {
 /**
  * App lifecycle: Before quit
  */
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   console.log('👋 BrainBrief shutting down...');
   app.isQuitting = true;
+  
+  // Close all persistent browsers
+  try {
+    const browserManager = require('../automation/browser-manager');
+    await browserManager.closeAllBrowsers();
+    logger.info('All browsers closed gracefully', 'main');
+  } catch (error) {
+    logger.warn('Error closing browsers on quit', 'main');
+  }
 });
 
 // Handle uncaught exceptions

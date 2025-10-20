@@ -73,26 +73,13 @@ async function followRedirect(shortUrl) {
  */
 async function initBrowser() {
   try {
-    logger.info('Launching browser for NotebookLM', 'notebooklm');
+    logger.info('Getting persistent NotebookLM browser...', 'notebooklm');
     
-    // Create browser-data directory if it doesn't exist
-    if (!fs.existsSync(BROWSER_DATA_DIR)) {
-      fs.mkdirSync(BROWSER_DATA_DIR, { recursive: true });
-      logger.debug('Created browser data directory', BROWSER_DATA_DIR, 'notebooklm');
-    }
+    // Use browser manager to get/create persistent browser
+    const browserManager = require('./browser-manager');
+    const context = await browserManager.getNotebookLMBrowser();
     
-    // Launch browser with persistent context
-    const context = await chromium.launchPersistentContext(BROWSER_DATA_DIR, {
-      headless: BROWSER_HEADLESS,
-      viewport: { width: BROWSER_WIDTH, height: BROWSER_HEIGHT },
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      args: [
-        '--disable-blink-features=AutomationControlled',
-        '--disable-dev-shm-usage'
-      ]
-    });
-    
-    logger.success('Browser launched for NotebookLM', 'notebooklm');
+    logger.success('Browser ready (persistent, stays open)', 'notebooklm');
     
     return {
       success: true,
@@ -101,7 +88,7 @@ async function initBrowser() {
     };
     
   } catch (error) {
-    logger.error('Failed to launch browser', error, 'notebooklm');
+    logger.error('Failed to get browser', error, 'notebooklm');
     return {
       success: false,
       data: null,
@@ -917,11 +904,12 @@ async function uploadBookmarks(bookmarks, options = {}) {
       logger.info(`First sync complete! Notebook has ${1 + sourcesAdded} sources.`, 'notebooklm');
     }
     
-    logger.info('Closing browser in 3 seconds...', 'notebooklm');
+    // Keep browser open (wait 3 seconds for user to see result)
+    logger.info('Waiting 3 seconds... (browser stays open)', 'notebooklm');
     await page.waitForTimeout(3000);
     
-    // Close browser
-    await context.close();
+    // DON'T close browser - it stays open for reuse
+    logger.debug('Browser kept open for next sync', null, 'notebooklm');
     
     return {
       success: true,
@@ -946,9 +934,8 @@ async function uploadBookmarks(bookmarks, options = {}) {
   } catch (error) {
     logger.error('NotebookLM upload failed', error, 'notebooklm');
     
-    if (context) {
-      await context.close().catch(() => {});
-    }
+    // Keep browser open even on error
+    logger.debug('Browser kept open despite error', null, 'notebooklm');
     
     return {
       success: false,

@@ -53,29 +53,13 @@ const SELECTOR_TIMESTAMP = 'time';
  */
 async function initBrowser() {
   try {
-    logger.info('Launching browser with persistent context', 'twitter');
+    logger.info('Getting persistent Twitter browser...', 'twitter');
     
-    // Create browser-data directory if it doesn't exist
-    if (!fs.existsSync(BROWSER_DATA_DIR)) {
-      fs.mkdirSync(BROWSER_DATA_DIR, { recursive: true });
-      logger.debug('Created browser data directory', BROWSER_DATA_DIR, 'twitter');
-    }
+    // Use browser manager to get/create persistent browser
+    const browserManager = require('./browser-manager');
+    const context = await browserManager.getTwitterBrowser();
     
-    // Launch browser with persistent context (saves login session)
-    // Add args to reduce bot detection
-    const context = await chromium.launchPersistentContext(BROWSER_DATA_DIR, {
-      headless: BROWSER_HEADLESS,
-      viewport: { width: BROWSER_WIDTH, height: BROWSER_HEIGHT },
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      args: [
-        '--disable-blink-features=AutomationControlled', // Hide automation
-        '--disable-dev-shm-usage',
-        '--disable-web-security', // Allow cross-origin (for OAuth)
-        '--no-sandbox'
-      ]
-    });
-    
-    logger.success('Browser launched successfully', 'twitter');
+    logger.success('Browser ready (persistent, stays open)', 'twitter');
     
     return {
       success: true,
@@ -84,7 +68,7 @@ async function initBrowser() {
     };
     
   } catch (error) {
-    logger.error('Failed to launch browser', error, 'twitter');
+    logger.error('Failed to get browser', error, 'twitter');
     return {
       success: false,
       data: null,
@@ -597,11 +581,9 @@ async function extractBookmarks(options = {}) {
     };
     
   } finally {
-    // Always close browser
-    if (context) {
-      await context.close();
-      logger.info('Browser closed (session saved)', 'twitter');
-    }
+    // DON'T close browser - it stays open for reuse
+    // context.close() removed - browser manager handles this
+    logger.debug('Browser kept open for next sync', null, 'twitter');
   }
 }
 
@@ -735,9 +717,8 @@ async function extractNewBookmarks(options = {}) {
     logger.success(`Incremental extraction complete: ${newBookmarks.length} NEW bookmarks`, 'twitter');
     logger.info(`Total extracted: ${totalExtracted}, New: ${newBookmarks.length}, Duplicates: ${skippedDuplicates}`, 'twitter');
     
-    // Close browser
-    await context.close();
-    logger.info('Browser closed (session saved)', 'twitter');
+    // Keep browser open for next sync
+    logger.debug('Browser kept open (persistent session)', null, 'twitter');
     
     return {
       success: true,
@@ -759,9 +740,8 @@ async function extractNewBookmarks(options = {}) {
   } catch (error) {
     logger.error('Incremental extraction failed', error, 'twitter');
     
-    if (context) {
-      await context.close().catch(() => {});
-    }
+    // Keep browser open even on error
+    logger.debug('Browser kept open despite error', null, 'twitter');
     
     return {
       success: false,
@@ -915,9 +895,8 @@ async function extractListTweets(listConfig) {
     logger.success(`Extracted ${tweets.length} tweets from list "${name}"`, 'twitter');
     logger.info(`Scroll attempts: ${scrollAttempts}`, 'twitter');
     
-    // Close browser
-    await context.close();
-    logger.info('Browser closed (session saved)', 'twitter');
+    // Keep browser open for reuse
+    logger.debug('Browser kept open (persistent session)', null, 'twitter');
     
     return {
       success: true,
@@ -936,9 +915,8 @@ async function extractListTweets(listConfig) {
   } catch (error) {
     logger.error(`Failed to extract list "${name}"`, error, 'twitter');
     
-    if (context) {
-      await context.close().catch(() => {});
-    }
+    // Keep browser open even on error
+    logger.debug('Browser kept open despite error', null, 'twitter');
     
     return {
       success: false,
