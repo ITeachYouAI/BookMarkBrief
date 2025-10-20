@@ -760,6 +760,7 @@ async function uploadBookmarks(bookmarks, options = {}) {
     
     const youtubeUrls = new Set();
     const pdfUrls = new Set();
+    const googleDocsUrls = new Set();
     
     bookmarks.forEach(bookmark => {
       // Collect YouTube URLs
@@ -772,6 +773,12 @@ async function uploadBookmarks(bookmarks, options = {}) {
         const pdfMatches = bookmark.text.match(/https?:\/\/[^\s]+\.pdf/gi);
         if (pdfMatches) {
           pdfMatches.forEach(url => pdfUrls.add(url));
+        }
+        
+        // Collect Google Docs URLs
+        const docsMatches = bookmark.text.match(/https?:\/\/docs\.google\.com\/[^\s]+/gi);
+        if (docsMatches) {
+          docsMatches.forEach(url => googleDocsUrls.add(url));
         }
       }
     });
@@ -797,7 +804,7 @@ async function uploadBookmarks(bookmarks, options = {}) {
       }
     }
     
-    logger.info(`Found ${expandedYoutubeUrls.size} unique YouTube videos, ${pdfUrls.size} unique PDFs`, 'notebooklm');
+    logger.info(`Found ${expandedYoutubeUrls.size} YouTube videos, ${pdfUrls.size} PDFs, ${googleDocsUrls.size} Google Docs`, 'notebooklm');
     
     // Filter out already-uploaded URLs (check database)
     const db = require('../db/database');
@@ -814,10 +821,11 @@ async function uploadBookmarks(bookmarks, options = {}) {
     const availableSlots = notebookTracker.MAX_SOURCES_PER_NOTEBOOK - currentSources;
     
     if (availableSlots <= 0) {
-      logger.warn('Notebook is full, skipping YouTube/PDF sources', 'notebooklm');
+      logger.warn('Notebook is full, skipping YouTube/PDF/Google Docs sources', 'notebooklm');
       expandedYoutubeUrls.clear();
       pdfUrls.clear();
-    } else if (expandedYoutubeUrls.size + pdfUrls.size > availableSlots) {
+      googleDocsUrls.clear();
+    } else if (expandedYoutubeUrls.size + pdfUrls.size + googleDocsUrls.size > availableSlots) {
       logger.warn(`Only ${availableSlots} slots available, will add what fits`, 'notebooklm');
     }
     
@@ -842,15 +850,46 @@ async function uploadBookmarks(bookmarks, options = {}) {
       }
     }
     
-    // TODO: Add PDF sources (disabled for now - untested)
-    // PDFs are still extracted and saved in markdown
-    // Users can manually add PDFs to NotebookLM if needed
-    if (pdfUrls.size > 0) {
-      logger.info(`Found ${pdfUrls.size} PDF URLs (saved in markdown, not auto-uploaded)`, 'notebooklm');
+    // Add PDF sources (up to available slots)
+    for (const url of pdfUrls) {
+      if (sourcesAdded >= availableSlots) {
+        logger.warn('Reached source limit, stopping', 'notebooklm');
+        break;
+      }
+      
+      try {
+        const result = await uploadURL(page, url, 'pdf');
+        if (result.success) {
+          sourcesAdded++;
+          logger.success(`Added PDF source ${sourcesAdded}`, 'notebooklm');
+        }
+      } catch (error) {
+        logger.warn(`Failed to add PDF: ${url}`, 'notebooklm');
+        // Continue with other sources
+      }
+    }
+    
+    // Add Google Docs sources (up to available slots)
+    for (const url of googleDocsUrls) {
+      if (sourcesAdded >= availableSlots) {
+        logger.warn('Reached source limit, stopping', 'notebooklm');
+        break;
+      }
+      
+      try {
+        const result = await uploadURL(page, url, 'google-docs');
+        if (result.success) {
+          sourcesAdded++;
+          logger.success(`Added Google Docs source ${sourcesAdded}`, 'notebooklm');
+        }
+      } catch (error) {
+        logger.warn(`Failed to add Google Docs: ${url}`, 'notebooklm');
+        // Continue with other sources
+      }
     }
     
     if (sourcesAdded > 0) {
-      logger.success(`✅ Added ${sourcesAdded} YouTube video source(s)`, 'notebooklm');
+      logger.success(`✅ Added ${sourcesAdded} additional source(s) (YouTube + PDFs + Google Docs)`, 'notebooklm');
     }
     
     if (notebookExisted) {
@@ -877,6 +916,7 @@ async function uploadBookmarks(bookmarks, options = {}) {
         sourceCount: targetNotebook.sourceCount + 1 + sourcesAdded,
         youtubeSourcesAdded: expandedYoutubeUrls.size,
         pdfSourcesAdded: pdfUrls.size,
+        googleDocsSourcesAdded: googleDocsUrls.size,
         totalSourcesAdded: sourcesAdded,
         message: notebookExisted 
           ? `Added ${1 + sourcesAdded} sources to notebook`
@@ -946,22 +986,42 @@ async function uploadURL(page, url, sourceType = 'youtube') {
     // STEP 4: Wait for buttons to be clickable
     await page.waitForTimeout(2000);
     
-    // STEP 5: Click YouTube chip/button
-    logger.info('STEP 2: Clicking YouTube button...', 'notebooklm');
-    await page.locator('mat-chip:has-text("YouTube")').click({ timeout: 10000 });
-    logger.success('Clicked YouTube button', 'notebooklm');
-    
-    // STEP 6: Wait for YouTube URL input screen to appear
-    logger.info('STEP 3: Waiting for URL input screen...', 'notebooklm');
-    await page.waitForTimeout(2000);
-    await page.waitForSelector('text=YouTube URL', { timeout: 10000 });
-    logger.success('YouTube URL screen loaded', 'notebooklm');
+    // STEP 5: Click appropriate source type button
+    if (sourceType === 'youtube') {
+      logger.info('STEP 2: Clicking YouTube button...', 'notebooklm');
+      await page.locator('mat-chip:has-text("YouTube")').click({ timeout: 10000 });
+      logger.success('Clicked YouTube button', 'notebooklm');
+      
+      // Wait for YouTube URL input screen
+      logger.info('STEP 3: Waiting for URL input screen...', 'notebooklm');
+      await page.waitForTimeout(2000);
+      await page.waitForSelector('text=YouTube URL', { timeout: 10000 });
+      logger.success('YouTube URL screen loaded', 'notebooklm');
+      
+    } else if (sourceType === 'pdf' || sourceType === 'google-docs' || sourceType === 'website') {
+      // PDFs, Google Docs, and generic websites all use "Website" button
+      const typeName = sourceType === 'google-docs' ? 'Google Docs' : sourceType === 'pdf' ? 'PDF' : 'Website';
+      logger.info(`STEP 2: Clicking Website button (for ${typeName})...`, 'notebooklm');
+      await page.locator('mat-chip:has-text("Website")').click({ timeout: 10000 });
+      logger.success('Clicked Website button', 'notebooklm');
+      
+      // Wait for URL input screen
+      logger.info('STEP 3: Waiting for URL input screen...', 'notebooklm');
+      await page.waitForTimeout(2000);
+      logger.success('URL input screen loaded', 'notebooklm');
+      
+    } else {
+      // Fallback
+      logger.warn(`Unknown source type: ${sourceType}, using Website`, 'notebooklm');
+      await page.locator('mat-chip:has-text("Website")').click({ timeout: 10000 });
+      await page.waitForTimeout(2000);
+    }
     
     // STEP 7: Find the input field and CLICK IT to focus
-    logger.info('STEP 4: Finding and clicking YouTube URL input...', 'notebooklm');
+    logger.info('STEP 4: Finding and clicking URL input...', 'notebooklm');
     await page.waitForTimeout(3000);
     
-    // Look for the input field with "Paste YouTube URL" placeholder
+    // Look for the input field
     const inputField = page.locator('input').last(); // Usually the last input in modal
     
     // CLICK to focus it
@@ -972,7 +1032,7 @@ async function uploadURL(page, url, sourceType = 'youtube') {
     
     // Now type the URL
     await page.keyboard.type(url);
-    logger.success(`Typed URL into field: ${url}`, 'notebooklm');
+    logger.success(`Typed ${sourceType} URL: ${url}`, 'notebooklm');
     
     // STEP 8: Submit (wait for validation, then press Enter)
     logger.info('STEP 5: Waiting for URL validation...', 'notebooklm');
