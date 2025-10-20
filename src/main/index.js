@@ -306,8 +306,17 @@ ipcMain.handle('get-stats', async () => {
 // Sync bookmarks from Twitter
 ipcMain.handle('sync-bookmarks', async (event, options = {}) => {
   try {
-    const { limit = 50, useIncremental = true } = options;
-    const syncType = useIncremental ? 'incremental' : 'full';
+    // Check if first sync (no bookmarks in DB yet)
+    const db = require('../db/database');
+    const statsResult = await db.getStats();
+    const isFirstSync = statsResult.success && (statsResult.data.total_bookmarks === 0);
+    
+    // First sync: Limit to 100 bookmarks (fast onboarding)
+    // Future syncs: Use incremental (only new bookmarks)
+    const limit = isFirstSync ? 100 : (options.limit || 500);
+    const useIncremental = !isFirstSync && (options.useIncremental !== false);
+    
+    const syncType = isFirstSync ? 'first-sync (limited to 100)' : useIncremental ? 'incremental' : 'full';
     logger.info(`UI triggered ${syncType} sync (max: ${limit})`, 'main');
     
     // Send status update to renderer
@@ -535,8 +544,9 @@ ipcMain.handle('test-twitter-connection', async () => {
   try {
     const twitter = require('../automation/twitter');
     
-    // Try to extract 1 bookmark (will prompt login if needed)
-    const result = await twitter.testExtraction();
+    // For onboarding: Extract just 10 bookmarks to test connection
+    // This is fast (~30 seconds) and verifies login works
+    const result = await twitter.extractBookmarks({ limit: 10 });
     
     return result;
   } catch (error) {
