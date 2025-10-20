@@ -612,3 +612,75 @@ footer a:hover {
   background: #b91c1c;
 }
 
+/* Account Management Section */
+
+.account-section {
+  margin-top: 40px;
+  border-top: 2px solid #eee;
+  padding-top: 30px;
+}
+
+.account-section h3 {
+  font-size: 1.2rem;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.account-card {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  margin-bottom: 20px;
+}
+
+.account-info {
+  flex: 1;
+}
+
+.account-label {
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 5px;
+}
+
+.account-email {
+  font-size: 1.1rem;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Danger Zone */
+
+.danger-zone {
+  background: #fff5f5;
+  border: 2px solid #fee;
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.danger-header h4 {
+  color: #dc2626;
+  font-size: 1rem;
+  margin: 0 0 10px 0;
+}
+
+.danger-content p {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+

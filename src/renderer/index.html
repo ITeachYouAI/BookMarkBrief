@@ -56,6 +56,35 @@
         </div>
       </section>
 
+      <!-- Account Management Section -->
+      <section class="account-section">
+        <div class="section-header">
+          <h3>⚙️ Account & Settings</h3>
+        </div>
+        
+        <div class="account-card">
+          <div class="account-info">
+            <div class="account-label">Google Account (NotebookLM)</div>
+            <div class="account-email" id="account-email-display">Detecting...</div>
+          </div>
+          <button class="btn btn-secondary" id="switch-account-btn">
+            🔄 Switch Account
+          </button>
+        </div>
+        
+        <div class="danger-zone">
+          <div class="danger-header">
+            <h4>⚠️ Danger Zone</h4>
+          </div>
+          <div class="danger-content">
+            <p>Reset if you deleted NotebookLM notebooks or want fresh start</p>
+            <button class="btn btn-danger" id="reset-database-btn">
+              🗑️ Reset Sync History
+            </button>
+          </div>
+        </div>
+      </section>
+
       <!-- Footer Actions -->
       <section class="footer-actions">
         <button class="btn btn-link" id="view-logs">📖 View Logs</button>
@@ -64,7 +93,7 @@
     </main>
 
     <footer>
-      <p>v1.3.0 • <a href="#" id="view-logs">Logs</a> • Auto-Transcribes YouTube Videos ✨</p>
+      <p>v1.3.0 • Auto-Transcribes YouTube Videos ✨</p>
     </footer>
   </div>
 

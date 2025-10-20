@@ -15,6 +15,9 @@ const notebooklmHomeBtn = document.getElementById('open-notebooklm-home');
 const viewLogsBtn = document.getElementById('view-logs');
 const listsContainer = document.getElementById('lists-container');
 const googleEmailSpan = document.getElementById('google-email');
+const accountEmailDisplay = document.getElementById('account-email-display');
+const switchAccountBtn = document.getElementById('switch-account-btn');
+const resetDatabaseBtn = document.getElementById('reset-database-btn');
 
 // Stats elements
 const bookmarksLastSync = document.getElementById('bookmarks-last-sync');
@@ -315,6 +318,116 @@ async function discoverLists() {
 }
 
 /**
+ * Load Google account info
+ */
+async function loadGoogleAccount() {
+  console.log('🔍 Detecting Google account...');
+  
+  try {
+    const result = await ipcRenderer.invoke('get-google-account');
+    
+    if (result.success && result.data) {
+      const { email, status } = result.data;
+      
+      if (email && email !== 'logged-in') {
+        // Real email detected
+        accountEmailDisplay.textContent = email;
+        googleEmailSpan.textContent = email;
+        googleEmailSpan.style.color = '#10a37f';
+      } else if (status === 'connected' || email === 'logged-in') {
+        // Logged in but email not detected
+        accountEmailDisplay.textContent = 'Connected';
+        googleEmailSpan.textContent = 'Connected';
+        googleEmailSpan.style.color = '#10a37f';
+      } else {
+        // Not logged in
+        accountEmailDisplay.textContent = 'Not logged in';
+        googleEmailSpan.textContent = 'Not connected';
+        googleEmailSpan.style.color = '#999';
+      }
+    } else {
+      accountEmailDisplay.textContent = 'Unknown';
+      googleEmailSpan.textContent = 'Not connected';
+    }
+    
+  } catch (error) {
+    console.error('Failed to load Google account:', error);
+    accountEmailDisplay.textContent = 'Error detecting account';
+  }
+}
+
+/**
+ * Switch Google account
+ */
+async function switchAccount() {
+  const confirmed = confirm(
+    '⚠️ Switch Google Account\n\n' +
+    'This will:\n' +
+    '✅ Log you out of current Google account\n' +
+    '✅ Next sync will ask you to log in again\n' +
+    '✅ You can choose a different account\n\n' +
+    '❌ Does NOT delete your bookmarks or sync history\n\n' +
+    'Continue?'
+  );
+  
+  if (!confirmed) return;
+  
+  try {
+    const result = await ipcRenderer.invoke('switch-account');
+    
+    if (result.success) {
+      showNotification('Logged Out', 'Next sync will ask you to log in', 'success');
+      loadGoogleAccount(); // Refresh account display
+    } else {
+      showNotification('Error', result.error, 'error');
+    }
+  } catch (error) {
+    showNotification('Error', error.message, 'error');
+  }
+}
+
+/**
+ * Reset database (sync history)
+ */
+async function resetDatabase() {
+  const confirmed = confirm(
+    '⚠️⚠️⚠️ RESET SYNC HISTORY ⚠️⚠️⚠️\n\n' +
+    'This will:\n' +
+    '✅ Clear all sync history\n' +
+    '✅ Allow re-uploading to NotebookLM\n' +
+    '✅ Keep your Lists configuration\n' +
+    '✅ Keep your logins (Twitter & Google)\n\n' +
+    '❌ You will need to re-sync everything\n\n' +
+    'Use this if you deleted NotebookLM notebooks manually.\n\n' +
+    'Are you SURE you want to reset?'
+  );
+  
+  if (!confirmed) return;
+  
+  // Double confirmation for destructive action
+  const doubleConfirm = confirm(
+    'Final confirmation:\n\n' +
+    'Reset sync history and allow fresh upload?\n\n' +
+    'This cannot be undone.'
+  );
+  
+  if (!doubleConfirm) return;
+  
+  try {
+    const result = await ipcRenderer.invoke('reset-database');
+    
+    if (result.success) {
+      showNotification('Database Reset', 'Sync history cleared. Ready to re-sync!', 'success');
+      loadStats(); // Refresh stats (will show 0)
+    } else {
+      showNotification('Error', result.error, 'error');
+    }
+  } catch (error) {
+    showNotification('Error', error.message, 'error');
+  }
+}
+
+/**
  * Export bookmarks to NotebookLM format
  */
 async function exportBookmarks() {
@@ -551,6 +664,16 @@ notebooklmHomeBtn.addEventListener('click', () => {
   require('electron').shell.openExternal('https://notebooklm.google.com');
 });
 
+switchAccountBtn.addEventListener('click', () => {
+  console.log('🔄 Switch Account clicked');
+  switchAccount();
+});
+
+resetDatabaseBtn.addEventListener('click', () => {
+  console.log('🗑️ Reset Database clicked');
+  resetDatabase();
+});
+
 /**
  * Initialize app on load
  */
@@ -560,10 +683,12 @@ window.addEventListener('DOMContentLoaded', () => {
   // Load initial data
   loadStats();
   loadLists();
+  loadGoogleAccount();
   
   // Refresh periodically
   setInterval(loadStats, 30000);
   setInterval(loadLists, 60000);
+  setInterval(loadGoogleAccount, 120000); // Refresh account every 2 minutes
 
-console.log('✅ Renderer ready');
+  console.log('✅ Renderer ready');
 });

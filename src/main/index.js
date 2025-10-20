@@ -436,6 +436,54 @@ ipcMain.handle('disable-schedule', async () => {
   }
 });
 
+// Get Google account info
+ipcMain.handle('get-google-account', async () => {
+  try {
+    const accountManager = require('../automation/account-manager');
+    const result = await accountManager.detectGoogleAccount();
+    return result;
+  } catch (error) {
+    logger.error('Failed to get Google account', error, 'main');
+    return { success: false, data: null, error: error.message };
+  }
+});
+
+// Switch Google account (logout)
+ipcMain.handle('switch-account', async () => {
+  try {
+    logger.info('UI requested account switch', 'main');
+    const accountManager = require('../automation/account-manager');
+    const result = await accountManager.clearBrowserSession();
+    
+    if (result.success) {
+      showSystemNotification('Logged Out', 'Next sync will ask you to log in');
+    }
+    
+    return result;
+  } catch (error) {
+    logger.error('Failed to switch account', error, 'main');
+    return { success: false, data: null, error: error.message };
+  }
+});
+
+// Reset database
+ipcMain.handle('reset-database', async () => {
+  try {
+    logger.info('UI requested database reset', 'main');
+    const accountManager = require('../automation/account-manager');
+    const result = await accountManager.resetDatabase();
+    
+    if (result.success) {
+      showSystemNotification('Database Reset', 'Sync history cleared');
+    }
+    
+    return result;
+  } catch (error) {
+    logger.error('Failed to reset database', error, 'main');
+    return { success: false, data: null, error: error.message };
+  }
+});
+
 // Get lists config
 ipcMain.handle('get-lists-config', async () => {
   try {
