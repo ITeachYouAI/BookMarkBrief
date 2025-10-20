@@ -419,14 +419,28 @@ async function getStats() {
     }
     const database = dbResult.data;
     
+    // Get bookmark stats
     const stmt = database.prepare('SELECT * FROM bookmark_stats');
     stmt.step();
     const stats = stmt.getAsObject();
     stmt.free();
     
+    // Count YouTube videos uploaded
+    const youtubeStmt = database.prepare(`
+      SELECT COUNT(DISTINCT url) as youtube_count 
+      FROM uploaded_urls 
+      WHERE url_type = 'youtube'
+    `);
+    youtubeStmt.step();
+    const youtubeResult = youtubeStmt.getAsObject();
+    youtubeStmt.free();
+    
+    const finalStats = stats || { total_bookmarks: 0, total_lists: 0, last_sync: null };
+    finalStats.youtube_count = youtubeResult.youtube_count || 0;
+    
     return {
       success: true,
-      data: stats || { total_bookmarks: 0, total_lists: 0, last_sync: null },
+      data: finalStats,
       error: null
     };
     
@@ -434,7 +448,7 @@ async function getStats() {
     logger.error('Failed to get stats', error, 'db');
     return {
       success: false,
-      data: { total_bookmarks: 0, total_lists: 0, last_sync: null },
+      data: { total_bookmarks: 0, total_lists: 0, last_sync: null, youtube_count: 0 },
       error: error.message
     };
   }

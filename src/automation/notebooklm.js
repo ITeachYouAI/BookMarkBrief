@@ -843,6 +843,24 @@ async function uploadBookmarks(bookmarks, options = {}) {
         if (result.success) {
           sourcesAdded++;
           logger.success(`Added YouTube source ${sourcesAdded}`, 'notebooklm');
+          
+          // Save to database (track uploaded URLs)
+          try {
+            await db.getDatabase().then(dbResult => {
+              if (dbResult.success) {
+                const database = dbResult.data;
+                const stmt = database.prepare(`
+                  INSERT OR IGNORE INTO uploaded_urls (notebook_name, url, url_type)
+                  VALUES (?, ?, ?)
+                `);
+                stmt.run([notebookName, url, 'youtube']);
+                stmt.free();
+                db.saveToFile();
+              }
+            });
+          } catch (dbError) {
+            logger.warn('Failed to save YouTube URL to DB', 'notebooklm');
+          }
         }
       } catch (error) {
         logger.warn(`Failed to add YouTube: ${url}`, 'notebooklm');
@@ -1044,7 +1062,7 @@ async function uploadURL(page, url, sourceType = 'youtube') {
     
     // STEP 9: Wait for source to be added
     await page.waitForTimeout(5000);
-    logger.success(`✅ YouTube source added: ${url}`, 'notebooklm');
+    logger.success(`✅ ${sourceType} source added: ${url}`, 'notebooklm');
     
     return {
       success: true,

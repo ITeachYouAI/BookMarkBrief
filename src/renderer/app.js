@@ -14,6 +14,7 @@ const discoverListsBtn = document.getElementById('discover-lists-btn');
 const notebooklmHomeBtn = document.getElementById('open-notebooklm-home');
 const viewLogsBtn = document.getElementById('view-logs');
 const listsContainer = document.getElementById('lists-container');
+const googleEmailSpan = document.getElementById('google-email');
 
 // Stats elements
 const bookmarksLastSync = document.getElementById('bookmarks-last-sync');
@@ -38,15 +39,21 @@ async function loadStats() {
       
       // Update bookmarks card
       bookmarksCountStat.textContent = stats.total_bookmarks || 0;
-      bookmarksYoutubeStat.textContent = 0; // TODO: Track YouTube sources in DB
+      bookmarksYoutubeStat.textContent = stats.youtube_count || 0;
       
       // Update last sync time
       if (stats.last_sync) {
         const syncDate = new Date(stats.last_sync);
         const timeAgo = getTimeAgo(syncDate);
         bookmarksLastSync.textContent = timeAgo;
+        
+        // If we have synced data, assume NotebookLM is connected
+        googleEmailSpan.textContent = 'Connected';
+        googleEmailSpan.style.color = '#10a37f';
       } else {
         bookmarksLastSync.textContent = 'Never synced';
+        googleEmailSpan.textContent = 'Not connected';
+        googleEmailSpan.style.color = '#999';
       }
       
       console.log('✅ Stats loaded:', stats);
